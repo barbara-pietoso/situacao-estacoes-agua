@@ -27,18 +27,18 @@ lista_completa_estacoes = [
     "86160010", "76240000", "76741900"
 ]
 
-# Seletor de estações (todas selecionadas por padrão)
-estacoes_selecionadas = st.multiselect(
-    "🔍 Selecione as estações para análise (todas selecionadas por padrão):",
-    options=lista_completa_estacoes,
-    default=lista_completa_estacoes
-)
+# Sidebar para seleção compacta
+with st.sidebar:
+    st.header("🔍 Seleção de estações")
+    estacoes_selecionadas = st.multiselect(
+        "Selecione estações (padrão: todas):",
+        options=lista_completa_estacoes,
+        default=lista_completa_estacoes
+    )
+    dias_verificados = st.slider("📅 Últimos dias para análise:", 1, 30, 7)
+    atualizar = st.button("🔄 Atualizar painel")
 
-# Dias a verificar
-dias_verificados = st.slider("📅 Verificar dados dos últimos quantos dias?", 1, 30, 7)
-
-# Botão para atualizar
-if st.button("🔄 Atualizar painel") and estacoes_selecionadas:
+if atualizar and estacoes_selecionadas:
     data_fim = datetime.today()
     data_inicio = data_fim - timedelta(days=dias_verificados)
 
@@ -94,5 +94,4 @@ if st.button("🔄 Atualizar painel") and estacoes_selecionadas:
 
 else:
     st.info("👈 Selecione estações e clique em **Atualizar painel**.")
-
 
