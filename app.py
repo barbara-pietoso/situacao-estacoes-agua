@@ -3,53 +3,62 @@ import pandas as pd
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
 
-# Função para consultar a estação na API da ANA
-def consultar_dados(cod_estacao, data_inicio, data_fim):
-    url = f"https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais?CodEstacao={cod_estacao}&DataInicio={data_inicio}&DataFim={data_fim}"
-    resposta = requests.get(url)
-    if resposta.status_code != 200:
-        return None
-    try:
-        root = ET.fromstring(resposta.content)
-        dados = root.findall(".//DadosHidrometereologicos")
-        return len(dados) > 0
-    except:
-        return None
+st.title("Monitoramento de Estações Hidrometeorológicas - ANA")
 
-# ---------------- Interface Streamlit ----------------
-st.set_page_config(page_title="Painel ANA - Estações Ativas", layout="wide")
-st.title("🚰 Painel de Monitoramento de Estações da ANA")
+# Número de dias a verificar
+dias_verificados = st.slider("Verificar dados dos últimos quantos dias?", 1, 30, 7)
 
-st.markdown("Este painel verifica quais estações estão **ativas** nos últimos X dias, consultando a API da ANA em tempo real.")
+# Entrada dos códigos das estações
+codigos_raw = st.text_area("Cole a lista de códigos das estações (um por linha):", height=200)
+codigos = [c.strip() for c in codigos_raw.splitlines() if c.strip().isdigit()]
 
-dias = st.slider("Verificar atividade nos últimos quantos dias?", min_value=1, max_value=30, value=7)
-data_fim = datetime.today()
-data_inicio = data_fim - timedelta(days=dias)
+# Botão para atualizar
+if st.button("Atualizar painel"):
 
-lista_estacoes = st.text_area(
-    "Insira os códigos das estações (um por linha):",
-    "87450004\n87410001\n87510000"
-)
+    data_fim = datetime.today()
+    data_inicio = data_fim - timedelta(days=dias_verificados)
 
-codigos = [linha.strip() for linha in lista_estacoes.splitlines() if linha.strip()]
+    data_inicio_str = data_inicio.strftime("%d/%m/%Y")
+    data_fim_str = data_fim.strftime("%d/%m/%Y")
 
-status_estacoes = []
+    estacoes_ativas = []
+    estacoes_inativas = []
 
-with st.spinner("Consultando estações na API da ANA..."):
-    for cod in codigos:
-        ativo = consultar_dados(cod, data_inicio.strftime("%d/%m/%Y"), data_fim.strftime("%d/%m/%Y"))
-        status_estacoes.append({
-            "Código": cod,
-            "Status": "Ativa" if ativo else "Inativa ou sem dados"
-        })
+    with st.spinner("Consultando dados da ANA..."):
+        for cod in codigos:
+            url = f"https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais?CodEstacao={cod}&DataInicio={data_inicio_str}&DataFim={data_fim_str}"
+            r = requests.get(url)
+            root = ET.fromstring(r.content)
 
-df_status = pd.DataFrame(status_estacoes)
+            # Verifica se há algum dado
+            ns = {'diffgr': 'urn:schemas-microsoft-com:xml-diffgram-v1'}
+            dados = root.findall(".//diffgr:diffgram//DadosHidrometereologicos", ns)
+            if dados:
+                estacoes_ativas.append(cod)
+            else:
+                estacoes_inativas.append(cod)
 
-st.success(f"Consulta concluída para {len(codigos)} estações.")
-st.dataframe(df_status, use_container_width=True)
+    # Exibe contagem
+    total = len(codigos)
+    n_ativas = len(estacoes_ativas)
+    n_inativas = len(estacoes_inativas)
 
-# Opção de baixar como CSV
-csv = df_status.to_csv(index=False).encode("utf-8")
-st.download_button("📥 Baixar resultados como CSV", csv, "estacoes_status.csv", "text/csv")
+    st.subheader("Resumo geral:")
+    st.write(f"Total de estações: **{total}**")
+    st.write(f"✅ Ativas: **{n_ativas}** ({n_ativas/total:.0%})")
+    st.write(f"⚠️ Inativas: **{n_inativas}** ({n_inativas/total:.0%})")
+
+    # Gráfico de pizza
+    fig, ax = plt.subplots()
+    ax.pie([n_ativas, n_inativas], labels=["Ativas", "Inativas"], autopct='%1.1f%%', colors=["#4CAF50", "#F44336"])
+    st.pyplot(fig)
+
+    # Lista das inativas
+    st.subheader("Estações inativas:")
+    if estacoes_inativas:
+        st.dataframe(pd.DataFrame(estacoes_inativas, columns=["Código da Estação"]))
+    else:
+        st.success("Todas as estações estão ativas no período informado!")
 
