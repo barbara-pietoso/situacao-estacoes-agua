@@ -4,3 +4,4 @@ pandas
 matplotlib
 xmltodict
 plotly
+pydeck
