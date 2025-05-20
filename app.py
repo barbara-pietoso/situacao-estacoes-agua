@@ -64,9 +64,17 @@ if st.button("Consultar"):
 
         df_resultado = pd.DataFrame(resultados)
 
-        # Juntar com coordenadas
-        df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "Long"]],
-                                          left_on="Estação", right_on="CÓDIGO FLU - ANA", how="left")
+        # Garante que as chaves de junção sejam do tipo string
+        df_resultado["Estação"] = df_resultado["Estação"].astype(str)
+        df_estacoes["CÓDIGO FLU - ANA"] = df_estacoes["CÓDIGO FLU - ANA"].astype(str)
+        
+        df_resultado = df_resultado.merge(
+            df_estacoes[["CÓDIGO FLU - ANA", "Lat", "Long"]],
+            left_on="Estação",
+            right_on="CÓDIGO FLU - ANA",
+            how="left"
+)
+
 
         # Corrige separador decimal e converte
         df_resultado["Lat"] = pd.to_numeric(df_resultado["Lat"].astype(str).str.replace(",", ".", regex=False), errors="coerce")
