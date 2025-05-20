@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="Painel de Estações Hidrometeorológicas", layout="wide")
 
 # Lista de todas as estações (exemplo reduzido – substitua pela sua lista completa)
-lista_completa_estacoes = [
+lista_estacoes = [
     "87241000", "87242020", "87450004", "87318000", "87010000", "87189000",
     "87376000", "87401750", "87333000", "87398750", "87111000", "87228450",
     "87309010", "84420000", "87510015", "88009000", "87510040", "88060210",
