@@ -101,7 +101,7 @@ if st.button("Consultar"):
 
         # Junta com coordenadas geográficas
         df_estacoes["CÓDIGO FLU - ANA"] = df_estacoes["CÓDIGO FLU - ANA"].astype(str)
-        df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "long"]],
+        df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "Long"]],
                                           left_on="Estação", right_on="CÓDIGO FLU - ANA", how="left")
 
         df_mapa = df_resultado.dropna(subset=["Lat", "long"])
