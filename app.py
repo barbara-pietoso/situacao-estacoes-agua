@@ -17,12 +17,13 @@ lista_estacoes = carregar_estacoes()
 
 st.title("🔍 Monitoramento de Estações Hidrometeorológicas")
 
-# Seletor de datas
-col1, col2 = st.columns(2)
-with col1:
-    data_inicio = st.date_input("Data inicial", value=datetime.now() - timedelta(days=7))
-with col2:
-    data_fim = st.date_input("Data final", value=datetime.now())
+# Seletor com barra deslizante de dias anteriores
+dias = st.slider("Selecione o intervalo de dias até hoje", min_value=1, max_value=30, value=7)
+
+# Define o intervalo de datas com base no slider
+data_fim = datetime.now()
+data_inicio = data_fim - timedelta(days=dias)
+st.markdown(f"📅 Intervalo selecionado: **{data_inicio.strftime('%d/%m/%Y')}** até **{data_fim.strftime('%d/%m/%Y')}**")
 
 # Checkbox para selecionar todas
 selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
