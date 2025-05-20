@@ -5,7 +5,6 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Monitoramento de Estações", layout="wide")
-
 st.title("🔎 Monitoramento de Estações Hidrometeorológicas")
 
 # Lista completa de estações
@@ -27,10 +26,9 @@ lista_estacoes = [
     "87317020", "86160010", "76240000", "76741900"
 ]
 
-# Expander com checkbox de seleção
+# Expander com seleção de estações
 with st.expander("🎛️ Estações monitoradas (clique para selecionar)", expanded=False):
     selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
-    
     if selecionar_todas:
         selecionadas = lista_estacoes
     else:
@@ -41,9 +39,10 @@ with st.expander("🎛️ Estações monitoradas (clique para selecionar)", expa
             key="estacoes_selector"
         )
 
-# Parâmetros de data
+# Seletor de intervalo de tempo
+dias = st.slider("Selecione o intervalo de dias para verificar as estações:", 1, 15, 3)
 hoje = datetime.today()
-data_inicio = hoje - timedelta(days=3)
+data_inicio = hoje - timedelta(days=dias)
 data_fim = hoje
 
 st.write(f"🔄 Consultando dados de **{data_inicio.date()}** até **{data_fim.date()}**...")
@@ -80,7 +79,6 @@ inativas = len(estacoes_inativas)
 st.subheader("📊 Status das estações")
 
 col1, col2 = st.columns(2)
-
 with col1:
     st.metric("Ativas", f"{ativas} / {total}", delta=f"{ativas/total*100:.1f}%")
 with col2:
