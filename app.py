@@ -104,11 +104,11 @@ if st.button("Consultar"):
         df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "Long"]],
                                           left_on="Estação", right_on="CÓDIGO FLU - ANA", how="left")
 
-        df_mapa = df_resultado.dropna(subset=["Lat", "long"])
+        df_mapa = df_resultado.dropna(subset=["Lat", "Long"])
 
         # Mapa interativo
         st.subheader("🗺️ Mapa das Estações Consultadas")
-        st.map(df_mapa.rename(columns={"Lat": "latitude", "long": "longitude"}))
+        st.map(df_mapa.rename(columns={"Lat": "latitude", "Long": "longitude"}))
 
         # Tabela de estações inativas
         if not inativas.empty:
