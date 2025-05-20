@@ -99,14 +99,14 @@ if st.button("Consultar"):
 
         # Junta coordenadas
         df_estacoes["CÓDIGO FLU - ANA"] = df_estacoes["CÓDIGO FLU - ANA"].astype(str)
-        df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "long"]],
+        df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "Long"]],
                                           left_on="Estação", right_on="CÓDIGO FLU - ANA", how="left")
 
         # Conversão segura das coordenadas
         df_resultado["Lat"] = pd.to_numeric(df_resultado["Lat"], errors="coerce")
-        df_resultado["long"] = pd.to_numeric(df_resultado["long"], errors="coerce")
+        df_resultado["Long"] = pd.to_numeric(df_resultado["Long"], errors="coerce")
 
-        df_mapa = df_resultado.dropna(subset=["Lat", "long"]).rename(columns={"Lat": "latitude", "long": "longitude"})
+        df_mapa = df_resultado.dropna(subset=["Lat", "Long"]).rename(columns={"Lat": "latitude", "Long": "longitude"})
 
         # Mapa interativo
         st.subheader("🗺️ Mapa das Estações Consultadas")
