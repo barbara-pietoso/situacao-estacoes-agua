@@ -41,53 +41,55 @@ with st.expander("🎛️ Estações monitoradas (clique para selecionar)", expa
 
 # Seletor de intervalo de tempo
 dias = st.slider("Selecione o intervalo de dias para verificar as estações:", 1, 15, 3)
-hoje = datetime.today()
-data_inicio = hoje - timedelta(days=dias)
-data_fim = hoje
 
-st.write(f"🔄 Consultando dados de **{data_inicio.date()}** até **{data_fim.date()}**...")
+# Botão de consulta
+if st.button("🔍 Consultar"):
+    hoje = datetime.today()
+    data_inicio = hoje - timedelta(days=dias)
+    data_fim = hoje
 
-# Função para verificar se uma estação está ativa
-def verificar_estacao(codigo_estacao, data_inicio, data_fim):
-    url = f"https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais?CodEstacao={codigo_estacao}&DataInicio={data_inicio.strftime('%d/%m/%Y')}&DataFim={data_fim.strftime('%d/%m/%Y')}"
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code != 200:
+    st.write(f"🔄 Consultando dados de **{data_inicio.date()}** até **{data_fim.date()}**...")
+
+    # Função para verificar se uma estação está ativa
+    def verificar_estacao(codigo_estacao, data_inicio, data_fim):
+        url = f"https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais?CodEstacao={codigo_estacao}&DataInicio={data_inicio.strftime('%d/%m/%Y')}&DataFim={data_fim.strftime('%d/%m/%Y')}"
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code != 200:
+                return False
+            root = ET.fromstring(response.content)
+            dados = root.findall(".//DadosHidrometereologicos")
+            return len(dados) > 0
+        except:
             return False
-        root = ET.fromstring(response.content)
-        dados = root.findall(".//DadosHidrometereologicos")
-        return len(dados) > 0
-    except:
-        return False
 
-# Verificação
-estacoes_ativas = []
-estacoes_inativas = []
+    # Verificação
+    estacoes_ativas = []
+    estacoes_inativas = []
 
-with st.spinner("🔍 Verificando status das estações..."):
-    for codigo in selecionadas:
-        if verificar_estacao(codigo, data_inicio, data_fim):
-            estacoes_ativas.append(codigo)
-        else:
-            estacoes_inativas.append(codigo)
+    with st.spinner("Verificando status das estações..."):
+        for codigo in selecionadas:
+            if verificar_estacao(codigo, data_inicio, data_fim):
+                estacoes_ativas.append(codigo)
+            else:
+                estacoes_inativas.append(codigo)
 
-# Gráfico com porcentagem
-total = len(selecionadas)
-ativas = len(estacoes_ativas)
-inativas = len(estacoes_inativas)
+    # Gráfico com porcentagem
+    total = len(selecionadas)
+    ativas = len(estacoes_ativas)
+    inativas = len(estacoes_inativas)
 
-st.subheader("📊 Status das estações")
+    st.subheader("📊 Status das estações")
 
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("Ativas", f"{ativas} / {total}", delta=f"{ativas/total*100:.1f}%")
-with col2:
-    st.metric("Inativas", f"{inativas} / {total}", delta=f"{inativas/total*100:.1f}%", delta_color="inverse")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Ativas", f"{ativas} / {total}", delta=f"{ativas/total*100:.1f}%")
+    with col2:
+        st.metric("Inativas", f"{inativas} / {total}", delta=f"{inativas/total*100:.1f}%", delta_color="inverse")
 
-# Lista das estações inativas
-st.subheader("📍 Estações inativas")
-if inativas > 0:
-    st.dataframe(pd.DataFrame(estacoes_inativas, columns=["Código da Estação"]))
-else:
-    st.success("✅ Todas as estações selecionadas estão ativas!")
-
+    # Lista das estações inativas
+    st.subheader("📍 Estações inativas")
+    if inativas > 0:
+        st.dataframe(pd.DataFrame(estacoes_inativas, columns=["Código da Estação"]))
+    else:
+        st.success("✅ Todas as estações selecionadas estão ativas!")
