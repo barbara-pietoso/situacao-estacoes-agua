@@ -69,13 +69,15 @@ if st.button("Consultar"):
         inativas = df_resultado[df_resultado["Status"] != "ativa"]
 
         col1, col2 = st.columns(2)
-        with col1:
-            st.metric("✅ Ativas", f"{len(ativas)} de {total}", delta=f"{(len(ativas)/total)*100:.1f}%")
-        with col2:
-            st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{(len(inativas)/total)*100:.1f}%")
 
-        # Gráfico
-        status_data = pd.DataFrame({
+        percent_ativas = (len(ativas) / total) * 100 if total > 0 else 0
+        percent_inativas = (len(inativas) / total) * 100 if total > 0 else 0
+        
+        with col1:
+            st.metric("✅ Ativas", f"{len(ativas)} de {total}", delta=f"{percent_ativas:.1f}%")
+        with col2:
+            st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{percent_inativas:.1f}%")
+                status_data = pd.DataFrame({
             "Status": ["Ativa", "Inativa/Erro"],
             "Quantidade": [len(ativas), len(inativas)]
         })
