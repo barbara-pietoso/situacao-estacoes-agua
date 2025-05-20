@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime, timedelta
+import plotly.express as px
 
 st.set_page_config(page_title="Monitoramento de Estações", layout="wide")
 
@@ -73,15 +74,32 @@ if st.button("Consultar"):
         with col2:
             st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{(len(inativas)/total)*100:.1f}%")
 
-        # Gráfico de pizza
-        st.subheader("Distribuição de Atividade")
-        st.plotly_chart(
-            pd.DataFrame({
-                "Status": ["Ativa", "Inativa/Erro"],
-                "Quantidade": [len(ativas), len(inativas)]
-            }).set_index("Status").plot.pie(y="Quantidade", autopct='%1.1f%%', ylabel="").figure,
-            use_container_width=True
+        # Dados para o gráfico
+        status_data = pd.DataFrame({
+            "Status": ["Ativa", "Inativa/Erro"],
+            "Quantidade": [len(ativas), len(inativas)]
+        })
+        
+        # Criação do gráfico com Plotly Express
+        fig = px.pie(
+            status_data,
+            names="Status",
+            values="Quantidade",
+            title="Distribuição de Atividade",
+            color_discrete_sequence=px.colors.qualitative.Set2,
+            hole=0.4
         )
+        
+        fig.update_traces(textinfo='percent+label', pull=[0.05, 0])
+        fig.update_layout(
+            showlegend=True,
+            margin=dict(t=40, b=20),
+            height=400
+        )
+        
+        # Exibição do gráfico no Streamlit
+        st.subheader("Distribuição de Atividade")
+        st.plotly_chart(fig, use_container_width=True)
 
         # Lista de inativas
         if not inativas.empty:
