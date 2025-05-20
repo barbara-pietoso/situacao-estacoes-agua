@@ -3,29 +3,31 @@ import pandas as pd
 import requests
 from datetime import datetime, timedelta
 import plotly.express as px
+import pydeck as pdk
+from io import BytesIO
 
 st.set_page_config(page_title="Monitoramento de Estações", layout="wide")
 
-# Função para carregar dados da planilha
+# Função para carregar lista de estações
 @st.cache_data
 def carregar_estacoes():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSsisgVgYF0i9ZyKyoeQR8hckZ2uSw8lPzJ4k_IfqKQu0GyKuBhb1h7-yeR8eiQJRIWiTNkwCs8a7f3/pub?output=csv"
     df = pd.read_csv(url)
-    return df
+    return df, df["CÓDIGO FLU - ANA"].dropna().astype(str).tolist()
 
-df_estacoes = carregar_estacoes()
-lista_estacoes = df_estacoes["CÓDIGO FLU - ANA"].dropna().astype(str).tolist()
+df_estacoes, lista_estacoes = carregar_estacoes()
 
 st.title("🔍 Monitoramento de Estações Hidrometeorológicas")
 
-# Seletor de dias com slider
-dias = st.slider("Selecione o intervalo de dias até hoje", min_value=1, max_value=30, value=7)
+# Barra deslizante de dias
+dias = st.slider("Selecionar últimos dias", 1, 30, 7)
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
-st.markdown(f"📅 Intervalo selecionado: **{data_inicio.strftime('%d/%m/%Y')}** até **{data_fim.strftime('%d/%m/%Y')}**")
 
-# Checkbox para selecionar todas as estações
-selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
+# Seleção de estações
+col1, col2 = st.columns(2)
+with col1:
+    selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
 
 if selecionar_todas:
     estacoes_selecionadas = lista_estacoes
@@ -38,7 +40,7 @@ else:
         placeholder="Selecione estações..."
     )
 
-# Botão de consulta
+# Botão para iniciar consulta
 if st.button("Consultar"):
     with st.spinner("Consultando dados..."):
 
@@ -62,19 +64,26 @@ if st.button("Consultar"):
 
         df_resultado = pd.DataFrame(resultados)
 
+        # Juntar com coordenadas
+        df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "Long"]],
+                                          left_on="Estação", right_on="CÓDIGO FLU - ANA", how="left")
+
+        # Corrige separador decimal e converte
+        df_resultado["Lat"] = pd.to_numeric(df_resultado["Lat"].astype(str).str.replace(",", ".", regex=False), errors="coerce")
+        df_resultado["Long"] = pd.to_numeric(df_resultado["Long"].astype(str).str.replace(",", ".", regex=False), errors="coerce")
+
+        df_mapa = df_resultado.dropna(subset=["Lat", "Long"]).rename(columns={"Lat": "latitude", "Long": "longitude"})
+
         # Métricas
         total = len(df_resultado)
         ativas = df_resultado[df_resultado["Status"] == "ativa"]
         inativas = df_resultado[df_resultado["Status"] != "ativa"]
 
-        percent_ativas = (len(ativas) / total) * 100 if total > 0 else 0
-        percent_inativas = (len(inativas) / total) * 100 if total > 0 else 0
-
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("✅ Ativas", f"{len(ativas)} de {total}", delta=f"{percent_ativas:.1f}%")
+            st.metric("✅ Ativas", f"{len(ativas)} de {total}", delta=f"{(len(ativas)/total)*100:.1f}%")
         with col2:
-            st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{percent_inativas:.1f}%")
+            st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{(len(inativas)/total)*100:.1f}%")
 
         # Gráfico de pizza
         status_data = pd.DataFrame({
@@ -92,31 +101,47 @@ if st.button("Consultar"):
         )
 
         fig.update_traces(textinfo='percent+label', pull=[0.05, 0])
-        fig.update_layout(showlegend=True, margin=dict(t=40, b=20), height=400)
+        fig.update_layout(
+            showlegend=True,
+            margin=dict(t=40, b=20),
+            height=400
+        )
 
-        st.subheader("Distribuição de Atividade")
+        st.subheader("📊 Distribuição de Atividade")
         st.plotly_chart(fig, use_container_width=True)
 
-        # Junta coordenadas
-        df_estacoes["CÓDIGO FLU - ANA"] = df_estacoes["CÓDIGO FLU - ANA"].astype(str)
-        df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "Long"]],
-                                  left_on="Estação", right_on="CÓDIGO FLU - ANA", how="left")
-
-        # Conversão segura das coordenadas
-        df_resultado["Lat"] = pd.to_numeric(df_resultado["Lat"], errors="coerce")
-        df_resultado["Long"] = pd.to_numeric(df_resultado["Long"], errors="coerce")
-        
-        df_mapa = df_resultado.dropna(subset=["Lat", "Long"]).rename(columns={"Lat": "latitude", "Long": "longitude"})
-
-
-        # Mapa interativo
-        st.subheader("🗺️ Mapa das Estações Consultadas")
+        # Mapa com pydeck
+        st.subheader("🗺️ Mapa das Estações Consultadas (Colorido por Status)")
         if not df_mapa.empty:
-            st.map(df_mapa)
+            df_mapa["color"] = df_mapa["Status"].apply(lambda x: [0, 200, 0] if x == "ativa" else [200, 0, 0])
+
+            layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=df_mapa,
+                get_position='[longitude, latitude]',
+                get_fill_color="color",
+                get_radius=3000,
+                pickable=True,
+                tooltip=True
+            )
+
+            view_state = pdk.ViewState(
+                latitude=df_mapa["latitude"].mean(),
+                longitude=df_mapa["longitude"].mean(),
+                zoom=5,
+                pitch=0
+            )
+
+            st.pydeck_chart(pdk.Deck(
+                map_style="mapbox://styles/mapbox/light-v9",
+                initial_view_state=view_state,
+                layers=[layer],
+                tooltip={"text": "Estação: {Estação}\nStatus: {Status}"}
+            ))
         else:
             st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
 
-        # Tabela de estações inativas
+        # Tabela de inativas
         if not inativas.empty:
             st.subheader("📋 Estações Inativas ou com Erro")
             st.dataframe(inativas, hide_index=True, use_container_width=True)
@@ -124,10 +149,7 @@ if st.button("Consultar"):
             st.success("Todas as estações consultadas estão ativas.")
 
         # Botão de download
+        st.subheader("⬇️ Baixar Relatório")
         csv = df_resultado.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="📥 Baixar relatório (.csv)",
-            data=csv,
-            file_name=f"relatorio_estacoes_{data_inicio.strftime('%Y%m%d')}_a_{data_fim.strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
+        st.download_button("📥 Baixar como CSV", data=csv, file_name="relatorio_estacoes.csv", mime="text/csv")
+
