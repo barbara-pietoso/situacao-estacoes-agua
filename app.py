@@ -107,9 +107,18 @@ if st.button("Consultar"):
             left_on="Estação", right_on="CÓDIGO FLU - ANA", how="left"
         ).copy()
 
-       # Conversão segura
+       # Conversão segura das coordenadas
         df_mapa["latitude"] = df_mapa["Lat"].astype(str).str.replace(",", ".", regex=False).str.strip()
         df_mapa["longitude"] = df_mapa["Long"].astype(str).str.replace(",", ".", regex=False).str.strip()
+        
+        # Converte para número e força valores inválidos para NaN
+        df_mapa["latitude"] = pd.to_numeric(df_mapa["latitude"], errors="coerce")
+        df_mapa["longitude"] = pd.to_numeric(df_mapa["longitude"], errors="coerce")
+        
+        # Exibe um preview no app para debug
+        st.write("Prévia das coordenadas:")
+        st.dataframe(df_mapa[["Estação", "latitude", "longitude", "Status"]].head())
+
         
         # Substitui vírgulas por ponto e converte para float, usando errors='coerce' para lidar com problemas
         df_mapa["latitude"] = pd.to_numeric(df_mapa["latitude"], errors="coerce")
