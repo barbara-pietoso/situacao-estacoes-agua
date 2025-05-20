@@ -33,13 +33,13 @@ data_fim_str = data_fim.strftime("%d/%m/%Y")
 
 st.title("📡 Painel de Monitoramento de Estações Hidrometeorológicas")
 
-# Multiselect compacto
-selecionadas = st.multiselect(
-    "Selecione as estações (clique para editar):",
-    options=lista_estacoes,
-    default=lista_estacoes,
-    label_visibility="collapsed"  # Esconde o rótulo
-)
+with st.expander("🎛️ Seleção de estações (clique para editar)", expanded=False):
+    selecionadas = st.multiselect(
+        "Selecione as estações:",
+        options=lista_estacoes,
+        default=lista_estacoes,
+        key="estacoes_selector"
+    )
 
 # Texto informativo
 if set(selecionadas) == set(lista_estacoes):
