@@ -77,7 +77,7 @@ if st.button("Consultar"):
             st.metric("✅ Ativas", f"{len(ativas)} de {total}", delta=f"{percent_ativas:.1f}%")
         with col2:
             st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{percent_inativas:.1f}%")
-                status_data = pd.DataFrame({
+            status_data = pd.DataFrame({
             "Status": ["Ativa", "Inativa/Erro"],
             "Quantidade": [len(ativas), len(inativas)]
         })
