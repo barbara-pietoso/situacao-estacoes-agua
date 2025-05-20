@@ -10,7 +10,7 @@ st.set_page_config(page_title="Monitoramento de Estações", layout="wide")
 def carregar_estacoes():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSsisgVgYF0i9ZyKyoeQR8hckZ2uSw8lPzJ4k_IfqKQu0GyKuBhb1h7-yeR8eiQJRIWiTNkwCs8a7f3/pub?output=csv"
     df = pd.read_csv(url)
-    return df.iloc[:, 0].dropna().astype(str).tolist()
+    return df.iloc["CÓDIGO FLU - ANA"].dropna().astype(str).tolist()
 
 lista_estacoes = carregar_estacoes()
 
