@@ -107,9 +107,13 @@ if st.button("Consultar"):
             left_on="Estação", right_on="CÓDIGO FLU - ANA", how="left"
         ).copy()
 
-        # Conversão para float
-        df_mapa["latitude"] = df_mapa["Lat"].str.replace(",", ".", regex=False).astype(float)
-        df_mapa["longitude"] = df_mapa["Long"].str.replace(",", ".", regex=False).astype(float)
+       # Conversão segura
+        df_mapa["latitude"] = df_mapa["Lat"].astype(str).str.replace(",", ".", regex=False).str.strip()
+        df_mapa["longitude"] = df_mapa["Long"].astype(str).str.replace(",", ".", regex=False).str.strip()
+        
+        # Substitui vírgulas por ponto e converte para float, usando errors='coerce' para lidar com problemas
+        df_mapa["latitude"] = pd.to_numeric(df_mapa["latitude"], errors="coerce")
+        df_mapa["longitude"] = pd.to_numeric(df_mapa["longitude"], errors="coerce")
 
         if not df_mapa.empty and df_mapa["latitude"].notnull().all() and df_mapa["longitude"].notnull().all():
             df_mapa["color"] = df_mapa["Status"].apply(lambda x: [0, 200, 0] if x == "ativa" else [200, 0, 0])
