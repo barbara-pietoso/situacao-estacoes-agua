@@ -1,14 +1,12 @@
 import streamlit as st
-import pandas as pd
 import requests
-import xml.etree.ElementTree as ET
+import xmltodict
+import pandas as pd
 from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Painel de Estações ANA", layout="wide")
-st.title("📡 Monitoramento de Estações Hidrometeorológicas - ANA")
+st.set_page_config(page_title="Painel de Estações Hidrometeorológicas", layout="wide")
 
-# Lista completa de estações
+# Lista de todas as estações (exemplo reduzido – substitua pela sua lista completa)
 lista_completa_estacoes = [
     "87241000", "87242020", "87450004", "87318000", "87010000", "87189000",
     "87376000", "87401750", "87333000", "87398750", "87111000", "87228450",
@@ -27,71 +25,78 @@ lista_completa_estacoes = [
     "86160010", "76240000", "76741900"
 ]
 
-# Sidebar para seleção compacta
-with st.sidebar:
-    st.header("🔍 Seleção de estações")
-    estacoes_selecionadas = st.multiselect(
-        "Selecione estações (padrão: todas):",
-        options=lista_completa_estacoes,
-        default=lista_completa_estacoes
-    )
-    dias_verificados = st.slider("📅 Últimos dias para análise:", 1, 30, 7)
-    atualizar = st.button("🔄 Atualizar painel")
+# Datas para verificar atividade
+data_fim = datetime.today()
+data_inicio = data_fim - timedelta(days=7)
+data_inicio_str = data_inicio.strftime("%d/%m/%Y")
+data_fim_str = data_fim.strftime("%d/%m/%Y")
 
-if atualizar and estacoes_selecionadas:
-    data_fim = datetime.today()
-    data_inicio = data_fim - timedelta(days=dias_verificados)
+st.title("📡 Painel de Monitoramento de Estações Hidrometeorológicas")
 
-    data_inicio_str = data_inicio.strftime("%d/%m/%Y")
-    data_fim_str = data_fim.strftime("%d/%m/%Y")
+# Multiselect compacto
+selecionadas = st.multiselect(
+    "Selecione as estações (clique para editar):",
+    options=lista_estacoes,
+    default=lista_estacoes,
+    label_visibility="collapsed"  # Esconde o rótulo
+)
 
-    estacoes_ativas = []
-    estacoes_inativas = []
-
-    with st.spinner("🔎 Consultando dados da ANA..."):
-        for cod in estacoes_selecionadas:
-            url = f"https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais?CodEstacao={cod}&DataInicio={data_inicio_str}&DataFim={data_fim_str}"
-            r = requests.get(url)
-            root = ET.fromstring(r.content)
-
-            ns = {'diffgr': 'urn:schemas-microsoft-com:xml-diffgram-v1'}
-            dados = root.findall(".//diffgr:diffgram//DadosHidrometereologicos", ns)
-
-            if dados:
-                estacoes_ativas.append(cod)
-            else:
-                estacoes_inativas.append(cod)
-
-    # Resultados
-    total = len(estacoes_selecionadas)
-    n_ativas = len(estacoes_ativas)
-    n_inativas = len(estacoes_inativas)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("📊 Resumo")
-        st.write(f"**Total selecionadas:** {total}")
-        st.success(f"✅ Ativas: {n_ativas} ({n_ativas/total:.0%})")
-        st.error(f"⚠️ Inativas: {n_inativas} ({n_inativas/total:.0%})")
-
-    with col2:
-        fig, ax = plt.subplots()
-        ax.pie(
-            [n_ativas, n_inativas],
-            labels=["Ativas", "Inativas"],
-            autopct='%1.1f%%',
-            colors=["#4CAF50", "#F44336"]
-        )
-        ax.axis("equal")
-        st.pyplot(fig)
-
-    if estacoes_inativas:
-        st.subheader("📍 Estações inativas")
-        st.dataframe(pd.DataFrame(estacoes_inativas, columns=["Código da Estação"]))
-    else:
-        st.success("🎉 Todas as estações selecionadas estão ativas!")
-
+# Texto informativo
+if set(selecionadas) == set(lista_estacoes):
+    st.markdown("✅ **Todas as estações selecionadas.**")
 else:
-    st.info("👈 Selecione estações e clique em **Atualizar painel**.")
+    st.markdown(f"🔎 **{len(selecionadas)} estações selecionadas.**")
+
+# Consulta função
+@st.cache_data(ttl=3600)
+def verificar_atividade(estacoes, inicio, fim):
+    status = {}
+    for cod in estacoes:
+        url = (
+            f"https://telemetriaws1.ana.gov.br/ServiceANA.asmx/"
+            f"DadosHidrometeorologicosGerais?CodEstacao={cod}"
+            f"&DataInicio={inicio}&DataFim={fim}"
+        )
+        try:
+            resp = requests.get(url, timeout=10)
+            data_dict = xmltodict.parse(resp.content)
+            dados = data_dict['DataTable']['diffgr:diffgram']
+            ativo = 'DocumentElement' in dados and 'DadosHidrometereologicos' in dados['DocumentElement']
+            status[cod] = ativo
+        except Exception:
+            status[cod] = False
+    return status
+
+# Rodando verificação
+with st.spinner("🔄 Consultando estações..."):
+    status_estacoes = verificar_atividade(selecionadas, data_inicio_str, data_fim_str)
+
+# Análise
+ativas = [k for k, v in status_estacoes.items() if v]
+inativas = [k for k, v in status_estacoes.items() if not v]
+total = len(selecionadas)
+perc_ativas = len(ativas) / total * 100 if total else 0
+perc_inativas = 100 - perc_ativas
+
+# Gráficos e dados
+col1, col2 = st.columns(2)
+with col1:
+    st.subheader("✅ Estações Ativas")
+    st.metric("Quantidade", len(ativas))
+    st.progress(perc_ativas / 100)
+with col2:
+    st.subheader("❌ Estações Inativas")
+    st.metric("Quantidade", len(inativas))
+    st.progress(perc_inativas / 100)
+
+# Tabela de inativas
+st.markdown("### 📄 Lista de Estações Inativas")
+if inativas:
+    st.dataframe(pd.DataFrame({"Código da Estação": inativas}))
+else:
+    st.success("Nenhuma estação inativa nos últimos 7 dias!")
+
+# Rodapé
+st.caption("Atualizado em " + datetime.now().strftime("%d/%m/%Y %H:%M"))
+
 
