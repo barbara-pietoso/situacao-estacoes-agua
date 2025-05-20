@@ -6,7 +6,7 @@ import plotly.express as px
 
 st.set_page_config(page_title="Monitoramento de Estações", layout="wide")
 
-# Função para carregar lista de estações do Google Sheets
+# Função para carregar dados da planilha
 @st.cache_data
 def carregar_estacoes():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSsisgVgYF0i9ZyKyoeQR8hckZ2uSw8lPzJ4k_IfqKQu0GyKuBhb1h7-yeR8eiQJRIWiTNkwCs8a7f3/pub?output=csv"
@@ -18,16 +18,15 @@ lista_estacoes = df_estacoes["CÓDIGO FLU - ANA"].dropna().astype(str).tolist()
 
 st.title("🔍 Monitoramento de Estações Hidrometeorológicas")
 
-# Seletor com barra deslizante de dias anteriores
+# Seletor de dias com slider
 dias = st.slider("Selecione o intervalo de dias até hoje", min_value=1, max_value=30, value=7)
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
 st.markdown(f"📅 Intervalo selecionado: **{data_inicio.strftime('%d/%m/%Y')}** até **{data_fim.strftime('%d/%m/%Y')}**")
 
-# Checkbox para selecionar todas
+# Checkbox para selecionar todas as estações
 selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
 
-# Multiselect com comportamento comprimido
 if selecionar_todas:
     estacoes_selecionadas = lista_estacoes
     st.markdown("*Todas as estações selecionadas.*")
@@ -39,7 +38,7 @@ else:
         placeholder="Selecione estações..."
     )
 
-# Botão para iniciar consulta
+# Botão de consulta
 if st.button("Consultar"):
     with st.spinner("Consultando dados..."):
 
@@ -68,16 +67,17 @@ if st.button("Consultar"):
         ativas = df_resultado[df_resultado["Status"] == "ativa"]
         inativas = df_resultado[df_resultado["Status"] != "ativa"]
 
-        col1, col2 = st.columns(2)
-
         percent_ativas = (len(ativas) / total) * 100 if total > 0 else 0
         percent_inativas = (len(inativas) / total) * 100 if total > 0 else 0
-        
+
+        col1, col2 = st.columns(2)
         with col1:
             st.metric("✅ Ativas", f"{len(ativas)} de {total}", delta=f"{percent_ativas:.1f}%")
         with col2:
             st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{percent_inativas:.1f}%")
-            status_data = pd.DataFrame({
+
+        # Gráfico de pizza
+        status_data = pd.DataFrame({
             "Status": ["Ativa", "Inativa/Erro"],
             "Quantidade": [len(ativas), len(inativas)]
         })
@@ -92,33 +92,28 @@ if st.button("Consultar"):
         )
 
         fig.update_traces(textinfo='percent+label', pull=[0.05, 0])
-        fig.update_layout(
-            showlegend=True,
-            margin=dict(t=40, b=20),
-            height=400
-        )
+        fig.update_layout(showlegend=True, margin=dict(t=40, b=20), height=400)
 
         st.subheader("Distribuição de Atividade")
         st.plotly_chart(fig, use_container_width=True)
 
-        # Junta com coordenadas geográficas
+        # Junta coordenadas
         df_estacoes["CÓDIGO FLU - ANA"] = df_estacoes["CÓDIGO FLU - ANA"].astype(str)
-        df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "Long"]],
+        df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "long"]],
                                           left_on="Estação", right_on="CÓDIGO FLU - ANA", how="left")
 
-        # Converte coordenadas para float e remove inválidos
+        # Conversão segura das coordenadas
         df_resultado["Lat"] = pd.to_numeric(df_resultado["Lat"], errors="coerce")
         df_resultado["long"] = pd.to_numeric(df_resultado["long"], errors="coerce")
-        
-        df_mapa = df_resultado.dropna(subset=["Lat", "long"])
-        df_mapa = df_mapa.rename(columns={"Lat": "latitude", "long": "longitude"})
 
-# Mapa interativo
-st.subheader("🗺️ Mapa das Estações Consultadas")
-if not df_mapa.empty:
-    st.map(df_mapa)
-else:
-    st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
+        df_mapa = df_resultado.dropna(subset=["Lat", "long"]).rename(columns={"Lat": "latitude", "long": "longitude"})
+
+        # Mapa interativo
+        st.subheader("🗺️ Mapa das Estações Consultadas")
+        if not df_mapa.empty:
+            st.map(df_mapa)
+        else:
+            st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
 
         # Tabela de estações inativas
         if not inativas.empty:
@@ -127,7 +122,7 @@ else:
         else:
             st.success("Todas as estações consultadas estão ativas.")
 
-        # Botão para download de CSV
+        # Botão de download
         csv = df_resultado.to_csv(index=False).encode("utf-8")
         st.download_button(
             label="📥 Baixar relatório (.csv)",
