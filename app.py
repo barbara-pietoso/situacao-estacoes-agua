@@ -106,11 +106,19 @@ if st.button("Consultar"):
         df_resultado = df_resultado.merge(df_estacoes[["CÓDIGO FLU - ANA", "Lat", "Long"]],
                                           left_on="Estação", right_on="CÓDIGO FLU - ANA", how="left")
 
-        df_mapa = df_resultado.dropna(subset=["Lat", "Long"])
+        # Converte coordenadas para float e remove inválidos
+        df_resultado["Lat"] = pd.to_numeric(df_resultado["Lat"], errors="coerce")
+        df_resultado["long"] = pd.to_numeric(df_resultado["long"], errors="coerce")
+        
+        df_mapa = df_resultado.dropna(subset=["Lat", "long"])
+        df_mapa = df_mapa.rename(columns={"Lat": "latitude", "long": "longitude"})
 
-        # Mapa interativo
-        st.subheader("🗺️ Mapa das Estações Consultadas")
-        st.map(df_mapa.rename(columns={"Lat": "latitude", "Long": "longitude"}))
+# Mapa interativo
+st.subheader("🗺️ Mapa das Estações Consultadas")
+if not df_mapa.empty:
+    st.map(df_mapa)
+else:
+    st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
 
         # Tabela de estações inativas
         if not inativas.empty:
