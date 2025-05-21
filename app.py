@@ -98,18 +98,21 @@ if st.button("Consultar"):
             })
 
             fig = px.pie(
-                status_data,
-                names="Status",
-                values="Quantidade",
-                title="",
-                color="Status",
-                color_discrete_map={"Ativa": "Prism[4]", "Inativa/Erro": "G10[8]"},
-                hole=0.4
-            )
-            fig.update_traces(textinfo='percent+label', pull=[0.05, 0])
-            fig.update_layout(showlegend=True, margin=dict(t=20, b=20), height=400)
-            st.plotly_chart(fig, use_container_width=True)
-
+            status_data,
+            names="Status",
+            values="Quantidade",
+            title="",
+            color="Status",
+            color_discrete_map={
+                "Ativa": "#73AF48",         # verde claro
+                "Inativa/Erro": "#B82B2B"   # vermelho escuro
+            },
+            hole=0.4
+        )
+        fig.update_traces(textinfo='percent+label', pull=[0.05, 0])
+        fig.update_layout(showlegend=True, margin=dict(t=20, b=20), height=400)
+        st.plotly_chart(fig, use_container_width=True)
+        
         with col4:
             df_mapa = df_resultado.dropna(subset=["latitude", "longitude"]).copy()
             if not df_mapa.empty:
