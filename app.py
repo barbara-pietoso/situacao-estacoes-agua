@@ -12,7 +12,7 @@ st.set_page_config(page_title="Monitoramento de Estações",
 col1, col2, col3 = st.columns([1,5,1], vertical_alignment="center")
 
 col3.image('https://github.com/barbara-pietoso/situacao-estacoes-agua/blob/main/drhslogo.jpg', width=100)
-col2.markdown("<h1 style='text-align: center;'>Monitoramento de Estações Hidrometeorológicas da SEMA - RS</h1>", unsafe_allow_html=True)
+col2.markdown("<h1 style='text-align: center;'>🔍Monitoramento de Estações Hidrometeorológicas da SEMA - RS</h1>", unsafe_allow_html=True)
 col1.image('https://github.com/barbara-pietoso/situacao-estacoes-agua/blob/main/EmbeddedImage59bb01f.jpg', width=150)
 
 # Função para carregar lista de estações do Google Sheets
@@ -25,8 +25,6 @@ def carregar_estacoes():
 
 df_estacoes = carregar_estacoes()
 lista_estacoes = df_estacoes["CÓDIGO FLU - ANA"].dropna().tolist()
-
-st.title("🔍 Monitoramento de Estações Hidrometeorológicas")
 
 # Seletor de datas
 dias = st.slider("Selecione o intervalo de dias até hoje", 1, 30, 7)
