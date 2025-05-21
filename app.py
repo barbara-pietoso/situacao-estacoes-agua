@@ -9,6 +9,12 @@ st.set_page_config(page_title="Monitoramento de Estações",
                    page_icon=":droplet:",
                    layout="wide")
 
+col1, col2, col3 = st.columns([1,5,1], vertical_alignment="center")
+
+col3.image('https://github.com/barbara-pietoso/situacao-estacoes-agua/blob/main/drhslogo.jpg', width=100)
+col2.markdown("<h1 style='text-align: center;'>Monitoramento de Estações Hidrometeorológicas da SEMA - RS</h1>", unsafe_allow_html=True)
+col1.image('https://github.com/barbara-pietoso/situacao-estacoes-agua/blob/main/EmbeddedImage59bb01f.jpg', width=150)
+
 # Função para carregar lista de estações do Google Sheets
 @st.cache_data
 def carregar_estacoes():
@@ -83,16 +89,16 @@ if st.button("Consultar"):
         ativas = df_resultado[df_resultado["Status"] == "ativa"]
         inativas = df_resultado[df_resultado["Status"] != "ativa"]
 
-        col1, col2 = st.columns(2)
-        with col1:
+        col4, col5 = st.columns(2)
+        with col4:
             st.metric("✅ Ativas", f"{len(ativas)} de {total}", delta=f"{(len(ativas)/total)*100:.1f}%")
-        with col2:
+        with col5:
             st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{(len(inativas)/total)*100:.1f}%")
 
         # Layout em duas colunas para gráfico + mapa
-        col3, col4 = st.columns([1, 1])
+        col6, col7 = st.columns([1, 1])
 
-        with col3:
+        with col6:
             st.subheader("📊 Distribuição de Atividade")
             status_data = pd.DataFrame({
                 "Status": ["Ativa", "Inativa/Erro"],
@@ -115,7 +121,7 @@ if st.button("Consultar"):
             fig.update_layout(showlegend=True, margin=dict(t=20, b=20), height=400)
             st.plotly_chart(fig, use_container_width=True)
 
-        with col4:
+        with col7:
             df_mapa = df_resultado.dropna(subset=["latitude", "longitude"]).copy()
             if not df_mapa.empty:
                 st.subheader("🗺️ Mapa das Estações")
