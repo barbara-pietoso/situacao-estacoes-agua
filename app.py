@@ -103,7 +103,7 @@ if st.button("Consultar"):
                 values="Quantidade",
                 title="",
                 color="Status",
-                color_discrete_map={"Ativa": "green", "Inativa/Erro": "red"},
+                color_discrete_map={"Ativa": "Prism[4]", "Inativa/Erro": "G10[8]"},
                 hole=0.4
             )
             fig.update_traces(textinfo='percent+label', pull=[0.05, 0])
@@ -114,7 +114,7 @@ if st.button("Consultar"):
             df_mapa = df_resultado.dropna(subset=["latitude", "longitude"]).copy()
             if not df_mapa.empty:
                 st.subheader("🗺️ Mapa das Estações")
-                color_map = {"ativa": [0, 200, 0], "inativa": [200, 0, 0], "erro": [128, 128, 128]}
+                color_map = {"ativa": [115, 175, 72], "inativa": [184, 43, 43], "erro": [218, 165, 27]}
                 df_mapa["color"] = df_mapa["Status"].map(color_map)
 
                 layer = pdk.Layer(
@@ -122,7 +122,7 @@ if st.button("Consultar"):
                     data=df_mapa,
                     get_position='[longitude, latitude]',
                     get_color="color",
-                    get_radius=2000,  # Aumenta tamanho dos pontos
+                    get_radius=2500,  # Aumenta tamanho dos pontos
                     pickable=True
                 )
 
