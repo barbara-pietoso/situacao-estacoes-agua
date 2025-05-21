@@ -122,7 +122,7 @@ if st.button("Consultar"):
                     data=df_mapa,
                     get_position='[longitude, latitude]',
                     get_color="color",
-                    get_radius=300,  # Aumenta tamanho dos pontos
+                    get_radius=1500,  # Aumenta tamanho dos pontos
                     pickable=True
                 )
 
