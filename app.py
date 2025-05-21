@@ -88,7 +88,7 @@ if st.button("Consultar"):
             st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{(len(inativas)/total)*100:.1f}%")
 
         # Layout em duas colunas para gráfico + mapa
-        col3, col4 = st.columns([1, 2])
+        col3, col4 = st.columns([1, 1])
 
         with col3:
             st.subheader("📊 Distribuição de Atividade")
@@ -122,7 +122,7 @@ if st.button("Consultar"):
                     data=df_mapa,
                     get_position='[longitude, latitude]',
                     get_color="color",
-                    get_radius=1500,  # Aumenta tamanho dos pontos
+                    get_radius=2000,  # Aumenta tamanho dos pontos
                     pickable=True
                 )
 
