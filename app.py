@@ -24,7 +24,14 @@ def carregar_estacoes():
     return df
 
 df_estacoes = carregar_estacoes()
-lista_estacoes = df_estacoes["CÓDIGO FLU - ANA"].dropna().tolist()
+lista_estacoes = (
+    df_estacoes["CÓDIGO FLU - ANA"]
+    .dropna()
+    .astype(str)
+    .str.strip()
+    .drop_duplicates()
+    .tolist()
+)
 
 # Seletor de datas
 dias = st.slider("Selecione o intervalo de dias até hoje", 1, 30, 7)
