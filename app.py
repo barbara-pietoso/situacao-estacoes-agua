@@ -5,7 +5,9 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import pydeck as pdk
 
-st.set_page_config(page_title="Monitoramento de Estações", layout="wide")
+st.set_page_config(page_title="Monitoramento de Estações", 
+                   page_icon=":droplet:",
+                   layout="wide")
 
 # Função para carregar lista de estações do Google Sheets
 @st.cache_data
@@ -98,21 +100,21 @@ if st.button("Consultar"):
             })
 
             fig = px.pie(
-            status_data,
-            names="Status",
-            values="Quantidade",
-            title="",
-            color="Status",
-            color_discrete_map={
-                "Ativa": "#73AF48",         # verde claro
-                "Inativa/Erro": "#B82B2B"   # vermelho escuro
-            },
-            hole=0.4
-        )
-        fig.update_traces(textinfo='percent+label', pull=[0.05, 0])
-        fig.update_layout(showlegend=True, margin=dict(t=20, b=20), height=400)
-        st.plotly_chart(fig, use_container_width=True)
-        
+                status_data,
+                names="Status",
+                values="Quantidade",
+                title="",
+                color="Status",
+                color_discrete_map={
+                    "Ativa": "#73AF48",
+                    "Inativa/Erro": "#B82B2B"
+                },
+                hole=0.4
+            )
+            fig.update_traces(textinfo='percent+label', pull=[0.05, 0])
+            fig.update_layout(showlegend=True, margin=dict(t=20, b=20), height=400)
+            st.plotly_chart(fig, use_container_width=True)
+
         with col4:
             df_mapa = df_resultado.dropna(subset=["latitude", "longitude"]).copy()
             if not df_mapa.empty:
@@ -125,7 +127,7 @@ if st.button("Consultar"):
                     data=df_mapa,
                     get_position='[longitude, latitude]',
                     get_color="color",
-                    get_radius=2500,  # Aumenta tamanho dos pontos
+                    get_radius=3000,
                     pickable=True
                 )
 
@@ -159,4 +161,3 @@ if st.button("Consultar"):
             file_name=f"relatorio_estacoes_{datetime.now().strftime('%Y-%m-%d')}.csv",
             mime="text/csv"
         )
-
