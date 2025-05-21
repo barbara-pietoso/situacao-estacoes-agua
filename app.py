@@ -11,9 +11,9 @@ st.set_page_config(page_title="Monitoramento de Estações",
 
 col1, col2, col3 = st.columns([1,5,1], vertical_alignment="center")
 
-col3.image('https://github.com/barbara-pietoso/situacao-estacoes-agua/blob/main/drhslogo.jpg', width=100)
+col3.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/drhslogo.jpg', width=100)
 col2.markdown("<h1 style='text-align: center;'>🔍Monitoramento de Estações Hidrometeorológicas da SEMA - RS</h1>", unsafe_allow_html=True)
-col1.image('https://github.com/barbara-pietoso/situacao-estacoes-agua/blob/main/EmbeddedImage59bb01f.jpg', width=150)
+col1.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/EmbeddedImage59bb01f.jpg', width=150)
 
 # Função para carregar lista de estações do Google Sheets
 @st.cache_data
