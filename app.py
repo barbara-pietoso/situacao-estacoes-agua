@@ -9,14 +9,14 @@ st.set_page_config(page_title="Monitoramento de Estacoes", layout="wide")
 
 # Função para carregar lista de estações do Google Sheets
 @st.cache_data
-
 def carregar_estacoes():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSsisgVgYF0i9ZyKyoeQR8hckZ2uSw8lPzJ4k_IfqKQu0GyKuBhb1h7-yeR8eiQJRIWiTNkwCs8a7f3/pub?output=csv"
     df = pd.read_csv(url)
     return df
 
 df_estacoes = carregar_estacoes()
-lista_estacoes = df_estacoes["CÓDIGO FLU - ANA"].dropna().astype(str).tolist()
+df_estacoes["CÓDIGO FLU - ANA"] = df_estacoes["CÓDIGO FLU - ANA"].astype(str)  # 👈 conversão aqui
+lista_estacoes = df_estacoes["CÓDIGO FLU - ANA"].dropna().tolist()
 
 st.title("🔍 Monitoramento de Estações Hidrometeorológicas")
 
@@ -60,7 +60,7 @@ if st.button("Consultar"):
         resultados = []
         for cod in estacoes_selecionadas:
             status = verificar_atividade(cod, data_inicio, data_fim)
-            resultados.append({"Estacao": cod, "Status": status})
+            resultados.append({"Estacao": str(cod), "Status": status})  # 👈 conversão aqui também
 
         df_resultado = pd.DataFrame(resultados)
 
@@ -89,7 +89,7 @@ if st.button("Consultar"):
         with col2:
             st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{(len(inativas)/total)*100:.1f}%")
 
-        # Gráfico
+        # Gráfico de pizza com Plotly Express
         status_data = pd.DataFrame({
             "Status": ["Ativa", "Inativa/Erro"],
             "Quantidade": [len(ativas), len(inativas)]
@@ -117,7 +117,6 @@ if st.button("Consultar"):
         if not df_mapa.empty:
             st.subheader("🗌️ Mapa das Estações")
             color_map = {"ativa": [0, 200, 0], "inativa": [200, 0, 0], "erro": [128, 128, 128]}
-
             df_mapa["color"] = df_mapa["Status"].map(color_map)
 
             layer = pdk.Layer(
@@ -154,4 +153,3 @@ if st.button("Consultar"):
             file_name=f"relatorio_estacoes_{datetime.now().strftime('%Y-%m-%d')}.csv",
             mime="text/csv"
         )
-
