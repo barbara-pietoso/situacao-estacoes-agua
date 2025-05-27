@@ -96,9 +96,9 @@ if st.button("Consultar"):
 
         col4, col5 = st.columns(2)
         with col4:
-            st.metric("✅ Ativas", f"{len(ativas)} de {total}", delta=f"{(len(ativas)/total)*100:.1f}%")
+            st.metric("✅ Ativas", f"{len(ativas)} de {total}")
         with col5:
-            st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}", delta=f"{(len(inativas)/total)*100:.1f}%")
+            st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}")
 
         # Layout em duas colunas para gráfico + mapa
         col6, col7 = st.columns([1, 1])
