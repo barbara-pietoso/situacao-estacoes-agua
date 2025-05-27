@@ -145,7 +145,7 @@ if st.button("Consultar"):
                 view_state = pdk.ViewState(
                     latitude=-30.0,
                     longitude=-53.5,
-                    zoom=5,
+                    zoom=5.5,
                     pitch=0
                 )
 
