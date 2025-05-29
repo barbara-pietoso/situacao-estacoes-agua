@@ -57,23 +57,25 @@ if st.button("Consultar"):
     with st.spinner("Consultando dados..."):
 
         def verificar_atividade(codigo, data_inicio, data_fim):
-            url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
-            params = {
-                "CodEstacao": codigo,
-                "DataInicio": data_inicio.strftime("%d/%m/%Y"),
-                "DataFim": data_fim.strftime("%d/%m/%Y")
-            }
-            try:
-                response = requests.get(url, params=params, timeout=10)
-                texto = response.text
-                if "<DataHora>" not in texto:
-                    return "inativa"
-                elif any(tag in texto for tag in ["<Nivel>", "<Chuva>"]):
-                    return "ativa"
-                else:
-                    return "sem dados válidos"
-            except:
-                return "erro"
+          url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
+          params = {
+              "CodEstacao": codigo,
+              "DataInicio": data_inicio.strftime("%d/%m/%Y"),
+              "DataFim": data_fim.strftime("%d/%m/%Y")
+          }
+          try:
+              response = requests.get(url, params=params, timeout=10)
+              if response.status_code == 200:
+                  text = response.text
+                  # Verifica se há ao menos um valor de dado presente
+                  if any(tag in text for tag in ["<Valor>", "<Nivel>", "<Vazao>", "<Chuva>"]):
+                      return "ativa"
+                  else:
+                      return "inativa"
+              else:
+                  return "erro"
+          except Exception:
+              return "erro"
 
         # Consulta os dados de cada estação
         resultados = []
