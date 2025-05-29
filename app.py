@@ -92,7 +92,7 @@ if st.button("Consultar"):
         # Consulta os dados de cada estação
         resultados = []
         for cod in estacoes_selecionadas:
-            status = verificar_atividade(cod, data_inicio, data_fim)
+            status = verificar_atividade(cod, data_inicio, data_fim, debug=True)
             resultados.append({"Estacao": str(cod).strip(), "Status": status})
 
         df_resultado = pd.DataFrame(resultados)
