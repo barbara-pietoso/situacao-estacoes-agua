@@ -55,6 +55,7 @@ else:
         placeholder="Selecione estações..."
     )
 
+# ✅ Função corrigida para verificar se estação está ativa com base no XML real
 def verificar_atividade(codigo, data_inicio, data_fim, debug=False):
     url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
     params = {
@@ -70,15 +71,21 @@ def verificar_atividade(codigo, data_inicio, data_fim, debug=False):
                 st.code(response.content.decode("utf-8"), language="xml")
 
             root = ET.fromstring(response.content)
-            series = root.findall(".//SerieHistorica")
-            if not series:
+            dados = root.findall(".//DadosHidrometereologicos")
+            if not dados:
                 return "sem dados válidos"
 
-            for serie in series:
-                for campo in ["Valor", "Nivel", "Vazao", "Chuva"]:
-                    dado = serie.find(campo)
-                    if dado is not None and dado.text and dado.text.strip():
+            for item in dados:
+                for campo_base in ["NivelFinal", "VazaoFinal", "ChuvaFinal"]:
+                    valor_elem = item.find(f"./{campo_base}")
+                    cq_elem = item.find(f"./CQ_{campo_base}")
+
+                    valor = valor_elem.text.strip() if valor_elem is not None and valor_elem.text else None
+                    qualidade = cq_elem.text.strip().lower() if cq_elem is not None and cq_elem.text else ""
+
+                    if valor and qualidade == "dado aprovado":
                         return "ativa"
+
             return "sem dados válidos"
         else:
             return "inativa"
@@ -106,7 +113,7 @@ if st.button("Consultar"):
             how="left"
         )
 
-        # Conversão segura das coordenadas (corrigindo vírgula para ponto)
+        # Conversão segura das coordenadas
         df_resultado["latitude"] = pd.to_numeric(
             df_resultado["Lat"].astype(str).str.replace(",", "."), errors="coerce"
         )
@@ -130,9 +137,8 @@ if st.button("Consultar"):
                 f"{len(inativas) + len(sem_dados) + len(erros)} de {total}"
             )
 
-        # Layout em duas colunas para gráfico + mapa
+        # Gráfico de pizza
         col6, col7 = st.columns([1, 1])
-
         with col6:
             st.subheader("📊 Distribuição de Atividade")
             status_data = pd.DataFrame({
@@ -158,6 +164,7 @@ if st.button("Consultar"):
             fig.update_layout(showlegend=True, margin=dict(t=20, b=20), height=400)
             st.plotly_chart(fig, use_container_width=True)
 
+        # Mapa
         with col7:
             df_mapa = df_resultado.dropna(subset=["latitude", "longitude"]).copy()
             if not df_mapa.empty:
@@ -195,7 +202,7 @@ if st.button("Consultar"):
             else:
                 st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
 
-        # Lista de estações não ativas
+        # Tabela de estações não ativas
         nao_ativas = df_resultado[df_resultado["Status"] != "ativa"]
         if not nao_ativas.empty:
             st.subheader("📋 Estações Não Ativas (sem dados, inativas ou com erro)")
@@ -207,7 +214,7 @@ if st.button("Consultar"):
         else:
             st.success("Todas as estações consultadas estão ativas.")
 
-        # Botão de download do CSV
+        # Botão de download
         st.download_button(
             label="📥 Baixar Relatório CSV",
             data=df_resultado.to_csv(index=False).encode("utf-8"),
