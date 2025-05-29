@@ -57,35 +57,38 @@ else:
 if st.button("Consultar"):
     with st.spinner("Consultando dados..."):
 
-        def verificar_atividade(codigo, data_inicio, data_fim):
-          url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
-          params = {
-              "CodEstacao": codigo,
-              "DataInicio": data_inicio.strftime("%d/%m/%Y"),
-              "DataFim": data_fim.strftime("%d/%m/%Y")
-          }
-          try:
-              response = requests.get(url, params=params, timeout=10)
-              if response.status_code == 200:
-                  root = ET.fromstring(response.content)
-      
-                  series = root.findall(".//SerieHistorica")
-                  if not series:
-                      return "sem dados válidos"
-      
-                  for serie in series:
-                      for campo in ["Valor", "Nivel", "Vazao", "Chuva"]:
-                          dado = serie.find(campo)
-                          if dado is not None and dado.text and dado.text.strip():
-                              return "ativa"
-                  return "sem dados válidos"
-              else:
-                  return "inativa"
-          except Exception as e:
-              # Descomente esta linha para depuração local
-              # st.write(f"Erro ao consultar estação {codigo}: {e}")
-              return "erro"
-      
+        def verificar_atividade(codigo, data_inicio, data_fim, debug=False):
+            url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
+            params = {
+                "CodEstacao": codigo,
+                "DataInicio": data_inicio.strftime("%d/%m/%Y"),
+                "DataFim": data_fim.strftime("%d/%m/%Y")
+            }
+            try:
+                response = requests.get(url, params=params, timeout=10)
+                if response.status_code == 200:
+                    if debug:
+                        st.write(f"Estação: {codigo}")
+                        st.code(response.content.decode("utf-8"), language="xml")
+
+                    root = ET.fromstring(response.content)
+                    series = root.findall(".//SerieHistorica")
+                    if not series:
+                        return "sem dados válidos"
+
+                    for serie in series:
+                        for campo in ["Valor", "Nivel", "Vazao", "Chuva"]:
+                            dado = serie.find(campo)
+                            if dado is not None and dado.text and dado.text.strip():
+                                return "ativa"
+                    return "sem dados válidos"
+                else:
+                    return "inativa"
+            except Exception as e:
+                if debug:
+                    st.error(f"Erro ao consultar estação {codigo}: {e}")
+                return "erro"
+
         # Consulta os dados de cada estação
         resultados = []
         for cod in estacoes_selecionadas:
@@ -199,4 +202,5 @@ if st.button("Consultar"):
             file_name=f"relatorio_estacoes_{datetime.now().strftime('%Y-%m-%d')}.csv",
             mime="text/csv"
         )
+
 
