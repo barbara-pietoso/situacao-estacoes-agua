@@ -57,25 +57,23 @@ if st.button("Consultar"):
     with st.spinner("Consultando dados..."):
 
         def verificar_atividade(codigo, data_inicio, data_fim):
-          url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
-          params = {
-              "CodEstacao": codigo,
-              "DataInicio": data_inicio.strftime("%d/%m/%Y"),
-              "DataFim": data_fim.strftime("%d/%m/%Y")
-    }
-          try:
-              response = requests.get(url, params=params, timeout=10)
-              if response.status_code == 200 and "<DataHora>" in response.text:
-                  # Verifica se há pelo menos um dado numérico válido
-                  if any(tag in response.text for tag in ["<Valor>", "<Nivel>", "<Vazao>", "<Chuva>"]):
-                      return "ativa"
-                  else:
-                      return "inativa"
-              else:
-                  return "inativa"
-          except:
-              return "erro"
-
+            url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
+            params = {
+                "CodEstacao": codigo,
+                "DataInicio": data_inicio.strftime("%d/%m/%Y"),
+                "DataFim": data_fim.strftime("%d/%m/%Y")
+            }
+            try:
+                response = requests.get(url, params=params, timeout=10)
+                texto = response.text
+                if "<DataHora>" not in texto:
+                    return "inativa"
+                elif any(tag in texto for tag in ["<Valor>", "<Nivel>", "<Vazao>", "<Chuva>"]):
+                    return "ativa"
+                else:
+                    return "sem dados válidos"
+            except:
+                return "erro"
 
         # Consulta os dados de cada estação
         resultados = []
@@ -100,13 +98,15 @@ if st.button("Consultar"):
         # Métricas
         total = len(df_resultado)
         ativas = df_resultado[df_resultado["Status"] == "ativa"]
-        inativas = df_resultado[df_resultado["Status"] != "ativa"]
+        sem_dados = df_resultado[df_resultado["Status"] == "sem dados válidos"]
+        inativas = df_resultado[df_resultado["Status"] == "inativa"]
+        erros = df_resultado[df_resultado["Status"] == "erro"]
 
         col4, col5 = st.columns(2)
         with col4:
             st.metric("✅ Ativas", f"{len(ativas)} de {total}")
         with col5:
-            st.metric("⚠️ Inativas ou erro", f"{len(inativas)} de {total}")
+            st.metric("⚠️ Inativas / Sem Dados / Erro", f"{len(inativas) + len(sem_dados) + len(erros)} de {total}")
 
         # Layout em duas colunas para gráfico + mapa
         col6, col7 = st.columns([1, 1])
@@ -114,8 +114,8 @@ if st.button("Consultar"):
         with col6:
             st.subheader("📊 Distribuição de Atividade")
             status_data = pd.DataFrame({
-                "Status": ["Ativa", "Inativa/Erro"],
-                "Quantidade": [len(ativas), len(inativas)]
+                "Status": ["Ativa", "Sem dados válidos", "Inativa", "Erro"],
+                "Quantidade": [len(ativas), len(sem_dados), len(inativas), len(erros)]
             })
 
             fig = px.pie(
@@ -126,11 +126,13 @@ if st.button("Consultar"):
                 color="Status",
                 color_discrete_map={
                     "Ativa": "#73AF48",
-                    "Inativa/Erro": "#B82B2B"
+                    "Sem dados válidos": "#FFA500",
+                    "Inativa": "#B82B2B",
+                    "Erro": "#DAA51B"
                 },
                 hole=0.4
             )
-            fig.update_traces(textinfo='percent+label', pull=[0.05, 0])
+            fig.update_traces(textinfo='percent+label', pull=[0.05]*4)
             fig.update_layout(showlegend=True, margin=dict(t=20, b=20), height=400)
             st.plotly_chart(fig, use_container_width=True)
 
@@ -138,7 +140,12 @@ if st.button("Consultar"):
             df_mapa = df_resultado.dropna(subset=["latitude", "longitude"]).copy()
             if not df_mapa.empty:
                 st.subheader("🗺️ Mapa das Estações")
-                color_map = {"ativa": [115, 175, 72], "inativa": [184, 43, 43], "erro": [218, 165, 27]}
+                color_map = {
+                    "ativa": [115, 175, 72],
+                    "sem dados válidos": [255, 165, 0],
+                    "inativa": [184, 43, 43],
+                    "erro": [218, 165, 27]
+                }
                 df_mapa["color"] = df_mapa["Status"].map(color_map)
 
                 layer = pdk.Layer(
@@ -166,10 +173,11 @@ if st.button("Consultar"):
             else:
                 st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
 
-        # Lista de estações inativas
-        if not inativas.empty:
-            st.subheader("📋 Estações Inativas ou com Erro")
-            st.dataframe(inativas[["Estacao", "Nome_Estacao", "Status"]], hide_index=True, use_container_width=True)
+        # Lista de estações não ativas
+        nao_ativas = df_resultado[df_resultado["Status"] != "ativa"]
+        if not nao_ativas.empty:
+            st.subheader("📋 Estações Não Ativas (sem dados, inativas ou com erro)")
+            st.dataframe(nao_ativas[["Estacao", "Nome_Estacao", "Status"]], hide_index=True, use_container_width=True)
         else:
             st.success("Todas as estações consultadas estão ativas.")
 
@@ -180,3 +188,4 @@ if st.button("Consultar"):
             file_name=f"relatorio_estacoes_{datetime.now().strftime('%Y-%m-%d')}.csv",
             mime="text/csv"
         )
+
