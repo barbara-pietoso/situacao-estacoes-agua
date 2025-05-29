@@ -4,6 +4,7 @@ import requests
 from datetime import datetime, timedelta
 import plotly.express as px
 import pydeck as pdk
+import xml.etree.ElementTree as ET
 
 st.set_page_config(page_title="Monitoramento de Estações", 
                    page_icon=":droplet:",
@@ -66,17 +67,26 @@ if st.button("Consultar"):
           try:
               response = requests.get(url, params=params, timeout=10)
               if response.status_code == 200:
-                  text = response.text
-                  # Verifica se há ao menos um valor de dado presente
-                  if any(tag in text for tag in ["<Valor>", "<Nivel>", "<Vazao>", "<Chuva>"]):
-                      return "ativa"
-                  else:
-                      return "inativa"
+                  root = ET.fromstring(response.content)
+                  # Verifica se há pelo menos um dado válido
+                  for serie in root.findall(".//SerieHistorica"):
+                      valor = serie.find("Valor")
+                      nivel = serie.find("Nivel")
+                      vazao = serie.find("Vazao")
+                      chuva = serie.find("Chuva")
+                      if any([
+                          valor is not None and valor.text and valor.text.strip(),
+                          nivel is not None and nivel.text and nivel.text.strip(),
+                          vazao is not None and vazao.text and vazao.text.strip(),
+                          chuva is not None and chuva.text and chuva.text.strip()
+                      ]):
+                          return "ativa"
+                  return "sem dados válidos"
               else:
-                  return "erro"
-          except Exception:
+                  return "inativa"
+          except:
               return "erro"
-
+      
         # Consulta os dados de cada estação
         resultados = []
         for cod in estacoes_selecionadas:
