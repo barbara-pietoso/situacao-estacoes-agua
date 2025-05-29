@@ -56,7 +56,7 @@ else:
     )
 
 # ✅ Função corrigida para verificar se estação está ativa com base no XML real
-def verificar_atividade(codigo, data_inicio, data_fim, debug=False):
+def verificar_atividade(codigo, data_inicio, data_fim):
     url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
     params = {
         "CodEstacao": codigo,
@@ -66,9 +66,6 @@ def verificar_atividade(codigo, data_inicio, data_fim, debug=False):
     try:
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
-            if debug:
-                st.write(f"Consultando estação: {codigo}")
-
             root = ET.fromstring(response.content)
             dados = root.findall(".//DadosHidrometereologicos")
             if not dados:
@@ -88,17 +85,16 @@ def verificar_atividade(codigo, data_inicio, data_fim, debug=False):
             return "sem dados válidos"
         else:
             return "inativa"
-    except Exception as e:
-        
+    except Exception:
         return "erro"
 
 # Botão para consulta
 if st.button("Consultar"):
-    with st.spinner("Consultando dados..."):
+    with st.spinner("🔄 Consultando estações..."):
 
         resultados = []
         for cod in estacoes_selecionadas:
-            status = verificar_atividade(cod, data_inicio, data_fim, debug=True)
+            status = verificar_atividade(cod, data_inicio, data_fim)
             resultados.append({"Estacao": str(cod).strip(), "Status": status})
 
         df_resultado = pd.DataFrame(resultados)
