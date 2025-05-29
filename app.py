@@ -89,8 +89,10 @@ def verificar_atividade(codigo, data_inicio, data_fim):
 
 # Botão para consulta
 if st.button("Consultar"):
-    resultados = []
-    progresso = st.progress(0, text="Consultando estações...")
+    with st.spinner("Consultando estações..."):
+        resultados = []
+        total_estacoes = len(estacoes_selecionadas)
+        barra = st.progress(0, text="Consultando estações...")
 
     for i, cod in enumerate(estacoes_selecionadas):
         status = verificar_atividade(cod, data_inicio, data_fim)
