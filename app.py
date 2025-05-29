@@ -68,7 +68,7 @@ if st.button("Consultar"):
                 texto = response.text
                 if "<DataHora>" not in texto:
                     return "inativa"
-                elif any(tag in texto for tag in ["<Valor>", "<Nivel>", "<Vazao>", "<Chuva>"]):
+                elif any(tag in texto for tag in ["<Valor>", "<Nivel>", "<Chuva>"]):
                     return "ativa"
                 else:
                     return "sem dados válidos"
