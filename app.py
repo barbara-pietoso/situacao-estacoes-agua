@@ -132,12 +132,11 @@ if st.button("Consultar"):
         erros = df_resultado[df_resultado["Status"] == "Erro de leitura"]
 
        col4, col5, col6 = st.columns(3)
-
-        with col4:
+       with col4:
             st.metric("✅ Transmitindo - Dados Válidos", f"{len(ativas)} de {total}")
-        with col5:
+       with col5:
             st.metric("🟡 Transmitindo - Sem Dados Válidos", f"{len(sem_dados)} de {total}")
-        with col6:
+       with col6:
             st.metric("🔴 Sem Transmissão / Erro", f"{len(inativas) + len(erros)} de {total}")
 
         # Gráfico de pizza
