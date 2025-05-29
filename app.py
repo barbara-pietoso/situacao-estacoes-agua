@@ -138,7 +138,7 @@ if st.button("Consultar"):
                     data=df_mapa,
                     get_position='[longitude, latitude]',
                     get_color="color",
-                    get_radius=3000,
+                    get_radius=5000,
                     pickable=True
                 )
 
