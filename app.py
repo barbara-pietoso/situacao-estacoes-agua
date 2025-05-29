@@ -89,8 +89,7 @@ def verificar_atividade(codigo, data_inicio, data_fim, debug=False):
         else:
             return "inativa"
     except Exception as e:
-        if debug:
-            st.error(f"Erro ao consultar estação {codigo}: {e}")
+        
         return "erro"
 
 # Botão para consulta
