@@ -18,7 +18,6 @@ col3.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-
 col2.markdown("<h1 style='text-align: center;'>Monitoramento de Estações Hidrometeorológicas da SEMA - RS</h1>", unsafe_allow_html=True)
 col1.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/EmbeddedImage59bb01f.jpg', width=250)
 
-# Função para carregar lista de estações do Google Sheets
 @st.cache_data(show_spinner=True)
 def carregar_estacoes():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSsisgVgYF0i9ZyKyoeQR8hckZ2uSw8lPzJ4k_IfqKQu0GyKuBhb1h7-yeR8eiQJRIWiTNkwCs8a7f3/pub?output=csv"
@@ -55,7 +54,7 @@ else:
         placeholder="Selecione estações..."
     )
 
-# ✅ Função corrigida para verificar se estação está ativa com base no XML real
+# Função de verificação
 def verificar_atividade(codigo, data_inicio, data_fim):
     url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
     params = {
@@ -69,7 +68,7 @@ def verificar_atividade(codigo, data_inicio, data_fim):
             root = ET.fromstring(response.content)
             dados = root.findall(".//DadosHidrometereologicos")
             if not dados:
-                return "sem dados válidos"
+                return "Transmitindo - Sem Dados Válidos"
 
             for item in dados:
                 for campo_base in ["NivelFinal", "VazaoFinal", "ChuvaFinal"]:
@@ -80,22 +79,25 @@ def verificar_atividade(codigo, data_inicio, data_fim):
                     qualidade = cq_elem.text.strip().lower() if cq_elem is not None and cq_elem.text else ""
 
                     if valor and qualidade == "dado aprovado":
-                        return "ativa"
+                        return "Transmitindo - Dados Válidos"
 
-            return "sem dados válidos"
+            return "Transmitindo - Sem Dados Válidos"
         else:
-            return "inativa"
+            return "Sem transmissão"
     except Exception:
-        return "erro"
+        return "Erro de leitura"
 
-# Botão para consulta
+# Botão de consulta
 if st.button("Consultar"):
     with st.spinner("🔄 Consultando estações..."):
-
         resultados = []
-        for cod in estacoes_selecionadas:
+        progresso = st.progress(0)
+        total = len(estacoes_selecionadas)
+
+        for i, cod in enumerate(estacoes_selecionadas):
             status = verificar_atividade(cod, data_inicio, data_fim)
             resultados.append({"Estacao": str(cod).strip(), "Status": status})
+            progresso.progress((i + 1) / total)
 
         df_resultado = pd.DataFrame(resultados)
 
@@ -107,7 +109,7 @@ if st.button("Consultar"):
             how="left"
         )
 
-        # Conversão segura das coordenadas
+        # Conversão das coordenadas
         df_resultado["latitude"] = pd.to_numeric(
             df_resultado["Lat"].astype(str).str.replace(",", "."), errors="coerce"
         )
@@ -115,20 +117,27 @@ if st.button("Consultar"):
             df_resultado["Long"].astype(str).str.replace(",", "."), errors="coerce"
         )
 
-        # Métricas
+        # Agrupamentos
         total = len(df_resultado)
-        ativas = df_resultado[df_resultado["Status"] == "ativa"]
-        sem_dados = df_resultado[df_resultado["Status"] == "sem dados válidos"]
-        inativas = df_resultado[df_resultado["Status"] == "inativa"]
-        erros = df_resultado[df_resultado["Status"] == "erro"]
+        status_labels = {
+            "Transmitindo - Dados Válidos": "verde",
+            "Transmitindo - Sem Dados Válidos": "amarelo",
+            "Sem transmissão": "vermelho",
+            "Erro de leitura": "cinza"
+        }
+
+        ativas = df_resultado[df_resultado["Status"] == "Transmitindo - Dados Válidos"]
+        sem_dados = df_resultado[df_resultado["Status"] == "Transmitindo - Sem Dados Válidos"]
+        inativas = df_resultado[df_resultado["Status"] == "Sem transmissão"]
+        erros = df_resultado[df_resultado["Status"] == "Erro de leitura"]
 
         col4, col5 = st.columns(2)
         with col4:
-            st.metric("✅ Ativas", f"{len(ativas)} de {total}")
+            st.metric("✅ Transmitindo com Dados Válidos", f"{len(ativas)} de {total}")
         with col5:
             st.metric(
-                "⚠️ Inativas / Sem Dados / Erro",
-                f"{len(inativas) + len(sem_dados) + len(erros)} de {total}"
+                "⚠️ Sem Dados / Sem Transmissão / Erro",
+                f"{len(sem_dados) + len(inativas) + len(erros)} de {total}"
             )
 
         # Gráfico de pizza
@@ -136,7 +145,12 @@ if st.button("Consultar"):
         with col6:
             st.subheader("📊 Distribuição de Atividade")
             status_data = pd.DataFrame({
-                "Status": ["Ativa", "Sem dados válidos", "Inativa", "Erro"],
+                "Status": [
+                    "Transmitindo - Dados Válidos",
+                    "Transmitindo - Sem Dados Válidos",
+                    "Sem transmissão",
+                    "Erro de leitura"
+                ],
                 "Quantidade": [len(ativas), len(sem_dados), len(inativas), len(erros)]
             })
 
@@ -144,13 +158,12 @@ if st.button("Consultar"):
                 status_data,
                 names="Status",
                 values="Quantidade",
-                title="",
                 color="Status",
                 color_discrete_map={
-                    "Ativa": "#73AF48",
-                    "Sem dados válidos": "#FFA500",
-                    "Inativa": "#B82B2B",
-                    "Erro": "#DAA51B"
+                    "Transmitindo - Dados Válidos": "#73AF48",
+                    "Transmitindo - Sem Dados Válidos": "#FFA500",
+                    "Sem transmissão": "#B82B2B",
+                    "Erro de leitura": "#A9A9A9"
                 },
                 hole=0.4
             )
@@ -164,10 +177,10 @@ if st.button("Consultar"):
             if not df_mapa.empty:
                 st.subheader("🗺️ Mapa das Estações")
                 color_map = {
-                    "ativa": [115, 175, 72],
-                    "sem dados válidos": [255, 165, 0],
-                    "inativa": [184, 43, 43],
-                    "erro": [218, 165, 27]
+                    "Transmitindo - Dados Válidos": [115, 175, 72],
+                    "Transmitindo - Sem Dados Válidos": [255, 165, 0],
+                    "Sem transmissão": [184, 43, 43],
+                    "Erro de leitura": [169, 169, 169]
                 }
                 df_mapa["color"] = df_mapa["Status"].map(color_map)
 
@@ -197,16 +210,16 @@ if st.button("Consultar"):
                 st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
 
         # Tabela de estações não ativas
-        nao_ativas = df_resultado[df_resultado["Status"] != "ativa"]
+        nao_ativas = df_resultado[df_resultado["Status"] != "Transmitindo - Dados Válidos"]
         if not nao_ativas.empty:
-            st.subheader("📋 Estações Não Ativas (sem dados, inativas ou com erro)")
+            st.subheader("📋 Estações Não Ativas")
             st.dataframe(
                 nao_ativas[["Estacao", "Nome_Estacao", "Status"]],
                 hide_index=True,
                 use_container_width=True
             )
         else:
-            st.success("Todas as estações consultadas estão ativas.")
+            st.success("Todas as estações consultadas estão transmitindo com dados válidos.")
 
         # Botão de download
         st.download_button(
@@ -215,5 +228,4 @@ if st.button("Consultar"):
             file_name=f"relatorio_estacoes_{datetime.now().strftime('%Y-%m-%d')}.csv",
             mime="text/csv"
         )
-
 
