@@ -131,18 +131,18 @@ if st.button("Consultar"):
         inativas = df_resultado[df_resultado["Status"] == "Sem transmissão"]
         erros = df_resultado[df_resultado["Status"] == "Erro de leitura"]
 
-        col4, col5 = st.columns(2)
+       col4, col5, col6 = st.columns(3)
+
         with col4:
-            st.metric("✅ Transmitindo com Dados Válidos", f"{len(ativas)} de {total}")
+            st.metric("✅ Transmitindo - Dados Válidos", f"{len(ativas)} de {total}")
         with col5:
-            st.metric(
-                "⚠️ Sem Dados / Sem Transmissão / Erro",
-                f"{len(sem_dados) + len(inativas) + len(erros)} de {total}"
-            )
+            st.metric("🟡 Transmitindo - Sem Dados Válidos", f"{len(sem_dados)} de {total}")
+        with col6:
+            st.metric("🔴 Sem Transmissão / Erro", f"{len(inativas) + len(erros)} de {total}")
 
         # Gráfico de pizza
-        col6, col7 = st.columns([1, 1])
-        with col6:
+        col8, col7 = st.columns([1, 1])
+        with col8:
             st.subheader("📊 Distribuição de Atividade")
             status_data = pd.DataFrame({
                 "Status": [
