@@ -32,7 +32,6 @@ lista_estacoes = (
     .dropna()
     .astype(str)
     .str.strip()
-    .drop_duplicates()
     .tolist()
 )
 
