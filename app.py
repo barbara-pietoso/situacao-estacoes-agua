@@ -6,18 +6,20 @@ import plotly.express as px
 import pydeck as pdk
 import xml.etree.ElementTree as ET
 
-st.set_page_config(page_title="Monitoramento de Estações", 
-                   page_icon=":droplet:",
-                   layout="wide")
+st.set_page_config(
+    page_title="Monitoramento de Estações", 
+    page_icon=":droplet:",
+    layout="wide"
+)
 
-col1, col2, col3 = st.columns([1,5,1], vertical_alignment="center")
+col1, col2, col3 = st.columns([1, 5, 1], vertical_alignment="center")
 
 col3.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/drhslogo.jpg', width=200)
 col2.markdown("<h1 style='text-align: center;'>Monitoramento de Estações Hidrometeorológicas da SEMA - RS</h1>", unsafe_allow_html=True)
 col1.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/EmbeddedImage59bb01f.jpg', width=250)
 
 # Função para carregar lista de estações do Google Sheets
-@st.cache_data
+@st.cache_data(show_spinner=True)
 def carregar_estacoes():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSsisgVgYF0i9ZyKyoeQR8hckZ2uSw8lPzJ4k_IfqKQu0GyKuBhb1h7-yeR8eiQJRIWiTNkwCs8a7f3/pub?output=csv"
     df = pd.read_csv(url)
@@ -53,43 +55,42 @@ else:
         placeholder="Selecione estações..."
     )
 
+def verificar_atividade(codigo, data_inicio, data_fim, debug=False):
+    url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
+    params = {
+        "CodEstacao": codigo,
+        "DataInicio": data_inicio.strftime("%d/%m/%Y"),
+        "DataFim": data_fim.strftime("%d/%m/%Y")
+    }
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        if response.status_code == 200:
+            if debug:
+                st.write(f"Estação: {codigo}")
+                st.code(response.content.decode("utf-8"), language="xml")
+
+            root = ET.fromstring(response.content)
+            series = root.findall(".//SerieHistorica")
+            if not series:
+                return "sem dados válidos"
+
+            for serie in series:
+                for campo in ["Valor", "Nivel", "Vazao", "Chuva"]:
+                    dado = serie.find(campo)
+                    if dado is not None and dado.text and dado.text.strip():
+                        return "ativa"
+            return "sem dados válidos"
+        else:
+            return "inativa"
+    except Exception as e:
+        if debug:
+            st.error(f"Erro ao consultar estação {codigo}: {e}")
+        return "erro"
+
 # Botão para consulta
 if st.button("Consultar"):
     with st.spinner("Consultando dados..."):
 
-        def verificar_atividade(codigo, data_inicio, data_fim, debug=False):
-            url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
-            params = {
-                "CodEstacao": codigo,
-                "DataInicio": data_inicio.strftime("%d/%m/%Y"),
-                "DataFim": data_fim.strftime("%d/%m/%Y")
-            }
-            try:
-                response = requests.get(url, params=params, timeout=10)
-                if response.status_code == 200:
-                    if debug:
-                        st.write(f"Estação: {codigo}")
-                        st.code(response.content.decode("utf-8"), language="xml")
-
-                    root = ET.fromstring(response.content)
-                    series = root.findall(".//SerieHistorica")
-                    if not series:
-                        return "sem dados válidos"
-
-                    for serie in series:
-                        for campo in ["Valor", "Nivel", "Vazao", "Chuva"]:
-                            dado = serie.find(campo)
-                            if dado is not None and dado.text and dado.text.strip():
-                                return "ativa"
-                    return "sem dados válidos"
-                else:
-                    return "inativa"
-            except Exception as e:
-                if debug:
-                    st.error(f"Erro ao consultar estação {codigo}: {e}")
-                return "erro"
-
-        # Consulta os dados de cada estação
         resultados = []
         for cod in estacoes_selecionadas:
             status = verificar_atividade(cod, data_inicio, data_fim, debug=True)
@@ -105,9 +106,13 @@ if st.button("Consultar"):
             how="left"
         )
 
-        # Conversão segura das coordenadas
-        df_resultado["latitude"] = pd.to_numeric(df_resultado["Lat"].astype(str).str.replace(",", "."), errors="coerce")
-        df_resultado["longitude"] = pd.to_numeric(df_resultado["Long"].astype(str).str.replace(",", "."), errors="coerce")
+        # Conversão segura das coordenadas (corrigindo vírgula para ponto)
+        df_resultado["latitude"] = pd.to_numeric(
+            df_resultado["Lat"].astype(str).str.replace(",", "."), errors="coerce"
+        )
+        df_resultado["longitude"] = pd.to_numeric(
+            df_resultado["Long"].astype(str).str.replace(",", "."), errors="coerce"
+        )
 
         # Métricas
         total = len(df_resultado)
@@ -120,7 +125,10 @@ if st.button("Consultar"):
         with col4:
             st.metric("✅ Ativas", f"{len(ativas)} de {total}")
         with col5:
-            st.metric("⚠️ Inativas / Sem Dados / Erro", f"{len(inativas) + len(sem_dados) + len(erros)} de {total}")
+            st.metric(
+                "⚠️ Inativas / Sem Dados / Erro",
+                f"{len(inativas) + len(sem_dados) + len(erros)} de {total}"
+            )
 
         # Layout em duas colunas para gráfico + mapa
         col6, col7 = st.columns([1, 1])
@@ -191,11 +199,15 @@ if st.button("Consultar"):
         nao_ativas = df_resultado[df_resultado["Status"] != "ativa"]
         if not nao_ativas.empty:
             st.subheader("📋 Estações Não Ativas (sem dados, inativas ou com erro)")
-            st.dataframe(nao_ativas[["Estacao", "Nome_Estacao", "Status"]], hide_index=True, use_container_width=True)
+            st.dataframe(
+                nao_ativas[["Estacao", "Nome_Estacao", "Status"]],
+                hide_index=True,
+                use_container_width=True
+            )
         else:
             st.success("Todas as estações consultadas estão ativas.")
 
-        # Botão de download
+        # Botão de download do CSV
         st.download_button(
             label="📥 Baixar Relatório CSV",
             data=df_resultado.to_csv(index=False).encode("utf-8"),
