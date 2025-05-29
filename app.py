@@ -68,23 +68,22 @@ if st.button("Consultar"):
               response = requests.get(url, params=params, timeout=10)
               if response.status_code == 200:
                   root = ET.fromstring(response.content)
-                  # Verifica se há pelo menos um dado válido
-                  for serie in root.findall(".//SerieHistorica"):
-                      valor = serie.find("Valor")
-                      nivel = serie.find("Nivel")
-                      vazao = serie.find("Vazao")
-                      chuva = serie.find("Chuva")
-                      if any([
-                          valor is not None and valor.text and valor.text.strip(),
-                          nivel is not None and nivel.text and nivel.text.strip(),
-                          vazao is not None and vazao.text and vazao.text.strip(),
-                          chuva is not None and chuva.text and chuva.text.strip()
-                      ]):
-                          return "ativa"
+      
+                  series = root.findall(".//SerieHistorica")
+                  if not series:
+                      return "sem dados válidos"
+      
+                  for serie in series:
+                      for campo in ["Valor", "Nivel", "Vazao", "Chuva"]:
+                          dado = serie.find(campo)
+                          if dado is not None and dado.text and dado.text.strip():
+                              return "ativa"
                   return "sem dados válidos"
               else:
                   return "inativa"
-          except:
+          except Exception as e:
+              # Descomente esta linha para depuração local
+              # st.write(f"Erro ao consultar estação {codigo}: {e}")
               return "erro"
       
         # Consulta os dados de cada estação
