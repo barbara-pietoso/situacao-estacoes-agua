@@ -63,18 +63,18 @@ if st.button("Consultar"):
               "DataInicio": data_inicio.strftime("%d/%m/%Y"),
               "DataFim": data_fim.strftime("%d/%m/%Y")
     }
-        try:
-            response = requests.get(url, params=params, timeout=10)
-            if response.status_code == 200 and "<DataHora>" in response.text:
-                # Verifica se há pelo menos um dado numérico válido
-                if any(tag in response.text for tag in ["<Valor>", "<Nivel>", "<Vazao>", "<Chuva>"]):
-                    return "ativa"
-                else:
-                    return "inativa"
-            else:
-                return "inativa"
-        except:
-            return "erro"
+          try:
+              response = requests.get(url, params=params, timeout=10)
+              if response.status_code == 200 and "<DataHora>" in response.text:
+                  # Verifica se há pelo menos um dado numérico válido
+                  if any(tag in response.text for tag in ["<Valor>", "<Nivel>", "<Vazao>", "<Chuva>"]):
+                      return "ativa"
+                  else:
+                      return "inativa"
+              else:
+                  return "inativa"
+          except:
+              return "erro"
 
 
         # Consulta os dados de cada estação
