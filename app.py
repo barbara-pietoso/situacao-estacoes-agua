@@ -97,7 +97,7 @@ if st.button("Consultar"):
     for i, cod in enumerate(estacoes_selecionadas):
         status = verificar_atividade(cod, data_inicio, data_fim)
         resultados.append({"Estacao": str(cod).strip(), "Status": status})
-        progresso.progress((i + 1) / len(estacoes_selecionadas), text="Consultando estações...")
+        barra.progress((i + 1) / len(estacoes_selecionadas), text="Consultando estações...")
 
     df_resultado = pd.DataFrame(resultados)
 
