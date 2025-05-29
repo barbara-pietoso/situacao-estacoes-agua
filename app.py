@@ -67,8 +67,7 @@ def verificar_atividade(codigo, data_inicio, data_fim, debug=False):
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
             if debug:
-                st.write(f"Estação: {codigo}")
-                st.code(response.content.decode("utf-8"), language="xml")
+                st.write(f"Consultando estação: {codigo}")
 
             root = ET.fromstring(response.content)
             dados = root.findall(".//DadosHidrometereologicos")
