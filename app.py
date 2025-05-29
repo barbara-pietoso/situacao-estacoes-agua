@@ -195,7 +195,7 @@ if st.button("Consultar"):
 
         # Botão de download
         st.download_button(
-            label="🔧 Baixar Relatório CSV",
+            label="📥 Baixar Relatório CSV",
             data=df_resultado.to_csv(index=False).encode("utf-8"),
             file_name=f"relatorio_estacoes_{datetime.now().strftime('%Y-%m-%d')}.csv",
             mime="text/csv"
