@@ -4,7 +4,6 @@ import requests
 from datetime import datetime, timedelta 
 import pydeck as pdk
 import xml.etree.ElementTree as ET
-import plotly.express as px
 
 st.set_page_config(
     page_title="Monitoramento de Estações", 
@@ -26,13 +25,21 @@ def carregar_estacoes():
     return df
 
 df_estacoes = carregar_estacoes()
-lista_estacoes = df_estacoes["CÓDIGO FLU - ANA"].dropna().astype(str).str.strip().drop_duplicates().tolist()
+lista_estacoes = (
+    df_estacoes["CÓDIGO FLU - ANA"]
+    .dropna()
+    .astype(str)
+    .str.strip()
+    .drop_duplicates()
+    .tolist()
+)
 
 dias = st.slider("Selecione o intervalo de dias até hoje", 1, 30, 7)
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
 
 selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
+
 if selecionar_todas:
     estacoes_selecionadas = lista_estacoes
     st.markdown("*Todas as estações selecionadas.*")
@@ -44,6 +51,7 @@ else:
         placeholder="Selecione estações..."
     )
 
+# 🚨 Função atualizada com retorno de dados válidos + data da última atualização
 def verificar_atividade(codigo, data_inicio, data_fim):
     url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
     params = {
@@ -53,63 +61,75 @@ def verificar_atividade(codigo, data_inicio, data_fim):
     }
     try:
         response = requests.get(url, params=params, timeout=10)
-        if response.status_code != 200:
-            return {"Status": "inativa"}
+        if response.status_code == 200:
+            root = ET.fromstring(response.content)
+            dados = root.findall(".//DadosHidrometereologicos")
+            if not dados:
+                return {"Status": "sem dados válidos"}
 
-        root = ET.fromstring(response.content)
-        dados = root.findall(".//DadosHidrometereologicos")
-        if not dados:
-            return {"Status": "sem dados válidos"}
+            valores_aprovados = {
+                "Nivel": None,
+                "Vazao": None,
+                "Chuva": None,
+                "DataNivel": None,
+                "DataVazao": None,
+                "DataChuva": None
+            }
 
-        valores_aprovados = {
-            "NivelFinal": None,
-            "DataNivel": None,
-            "VazaoFinal": None,
-            "DataVazao": None,
-            "ChuvaFinal": None,
-            "DataChuva": None
-        }
+            for item in dados:
+                data_text = item.findtext("DataHora")
+                try:
+                    data_registro = datetime.strptime(data_text, "%Y-%m-%dT%H:%M:%S") if data_text else None
+                except:
+                    data_registro = None
 
-        for item in dados:
-            for campo_base in ["NivelFinal", "VazaoFinal", "ChuvaFinal"]:
-                valor_elem = item.find(f"./{campo_base}")
-                data_elem = item.find(f"./DataHora")
-                cq_elem = item.find(f"./CQ_{campo_base}")
+                for campo, chave_valor, chave_data in [
+                    ("NivelFinal", "Nivel", "DataNivel"),
+                    ("VazaoFinal", "Vazao", "DataVazao"),
+                    ("ChuvaFinal", "Chuva", "DataChuva")
+                ]:
+                    valor_elem = item.find(campo)
+                    cq_elem = item.find(f"CQ_{campo}")
 
-                valor = valor_elem.text.strip() if valor_elem is not None and valor_elem.text else None
-                qualidade = cq_elem.text.strip().lower() if cq_elem is not None and cq_elem.text else ""
-                data = data_elem.text.strip() if data_elem is not None and data_elem.text else None
+                    valor = valor_elem.text.strip() if valor_elem is not None and valor_elem.text else None
+                    qualidade = cq_elem.text.strip().lower() if cq_elem is not None and cq_elem.text else ""
 
-                if valor and qualidade == "dado aprovado":
-                    if valores_aprovados[campo_base] is None:
-                        valores_aprovados[campo_base] = valor
-                        try:
-                            valores_aprovados[f"Data{campo_base.replace('Final', '')}"] = datetime.strptime(data, "%Y-%m-%dT%H:%M:%S")
-                        except:
-                            valores_aprovados[f"Data{campo_base.replace('Final', '')}"] = None
+                    if valor and qualidade == "dado aprovado":
+                        # Só substitui se ainda estiver vazio (último valor mais recente é o que importa)
+                        valores_aprovados[chave_valor] = valor
+                        valores_aprovados[chave_data] = data_registro
 
-        if any(valores_aprovados[k] for k in ["NivelFinal", "VazaoFinal", "ChuvaFinal"]):
-            datas = [valores_aprovados[k] for k in ["DataNivel", "DataVazao", "DataChuva"] if valores_aprovados[k]]
-            ultima_data = max(datas) if datas else None
-            return {"Status": "ativa", **valores_aprovados, "UltimaAtualizacao": ultima_data}
+            if any([valores_aprovados["Nivel"], valores_aprovados["Vazao"], valores_aprovados["Chuva"]]):
+                datas = [valores_aprovados[k] for k in ["DataNivel", "DataVazao", "DataChuva"] if valores_aprovados[k]]
+                ultima_data = max(datas) if datas else None
+                return {
+                    "Status": "ativa",
+                    "Nivel": valores_aprovados["Nivel"],
+                    "Vazao": valores_aprovados["Vazao"],
+                    "Chuva": valores_aprovados["Chuva"],
+                    "UltimaAtualizacao": ultima_data.strftime("%d/%m/%Y %H:%M") if ultima_data else ""
+                }
+            else:
+                return {"Status": "sem dados válidos"}
         else:
-            return {"Status": "sem dados válidos"}
-
+            return {"Status": "inativa"}
     except:
         return {"Status": "erro"}
 
 if st.button("Consultar"):
     with st.spinner("Consultando estações..."):
         resultados = []
+        total_estacoes = len(estacoes_selecionadas)
         barra = st.progress(0, text="Consultando estações...")
 
         for i, cod in enumerate(estacoes_selecionadas):
             resultado = verificar_atividade(cod, data_inicio, data_fim)
             resultado["Estacao"] = str(cod).strip()
             resultados.append(resultado)
-            barra.progress((i + 1) / len(estacoes_selecionadas), text="Consultando estações...")
+            barra.progress((i + 1) / total_estacoes, text="Consultando estações...")
 
     df_resultado = pd.DataFrame(resultados)
+
     df_resultado = df_resultado.merge(
         df_estacoes,
         left_on="Estacao",
@@ -124,28 +144,25 @@ if st.button("Consultar"):
         df_resultado["Long"].astype(str).str.replace(",", "."), errors="coerce"
     )
 
-    total = len(df_resultado)
     ativas = df_resultado[df_resultado["Status"] == "ativa"]
     sem_dados = df_resultado[df_resultado["Status"] == "sem dados válidos"]
     inativas = df_resultado[df_resultado["Status"] == "inativa"]
     erros = df_resultado[df_resultado["Status"] == "erro"]
+    total = len(df_resultado)
 
     col4, col5, col6 = st.columns(3)
-    with col4:
-        st.metric("✅ Transmitindo - Dados Válidos", f"{len(ativas)} de {total}")
-    with col5:
-        st.metric("🟡 Transmitindo - Sem Dados Válidos", f"{len(sem_dados)} de {total}")
-    with col6:
-        st.metric("🔴 Sem Transmissão / Erro", f"{len(inativas) + len(erros)} de {total}")
+    col4.metric("✅ Transmitindo - Dados Válidos", f"{len(ativas)} de {total}")
+    col5.metric("🟡 Transmitindo - Sem Dados Válidos", f"{len(sem_dados)} de {total}")
+    col6.metric("🔴 Sem Transmissão / Erro", f"{len(inativas) + len(erros)} de {total}")
 
     col8, col7 = st.columns([1, 1])
     with col8:
         st.subheader("📊 Distribuição de Atividade")
+        import plotly.express as px
         status_data = pd.DataFrame({
             "Status": ["Ativa", "Sem dados válidos", "Inativa", "Erro"],
             "Quantidade": [len(ativas), len(sem_dados), len(inativas), len(erros)]
         })
-
         fig = px.pie(
             status_data,
             names="Status",
@@ -174,7 +191,6 @@ if st.button("Consultar"):
                 "erro": [169, 169, 169]
             }
             df_mapa["color"] = df_mapa["Status"].map(color_map)
-
             layer = pdk.Layer(
                 "ScatterplotLayer",
                 data=df_mapa,
@@ -183,14 +199,12 @@ if st.button("Consultar"):
                 get_radius=5000,
                 pickable=True
             )
-
             view_state = pdk.ViewState(
                 latitude=-30.0,
                 longitude=-53.5,
                 zoom=5.5,
                 pitch=0
             )
-
             st.pydeck_chart(pdk.Deck(
                 layers=[layer],
                 initial_view_state=view_state,
@@ -200,22 +214,14 @@ if st.button("Consultar"):
         else:
             st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
 
-    # Tabela de estações ativas
     if not ativas.empty:
-        st.subheader("✅ Estações Ativas (com dados válidos)")
+        st.subheader("✅ Estações Ativas com Dados Válidos")
         st.dataframe(
-            ativas[[
-                "Estacao", "Nome_Estacao", "Status",
-                "NivelFinal", "DataNivel",
-                "VazaoFinal", "DataVazao",
-                "ChuvaFinal", "DataChuva",
-                "UltimaAtualizacao"
-            ]],
+            ativas[["Estacao", "Nome_Estacao", "Nivel", "Vazao", "Chuva", "UltimaAtualizacao"]],
             hide_index=True,
             use_container_width=True
         )
 
-    # Tabela de estações não ativas
     nao_ativas = df_resultado[df_resultado["Status"] != "ativa"]
     if not nao_ativas.empty:
         st.subheader("📋 Estações Não Ativas (sem dados, inativas ou com erro)")
@@ -227,7 +233,6 @@ if st.button("Consultar"):
     else:
         st.success("Todas as estações consultadas estão ativas.")
 
-    # Botão de download
     st.download_button(
         label="📥 Baixar Relatório CSV",
         data=df_resultado.to_csv(index=False).encode("utf-8"),
