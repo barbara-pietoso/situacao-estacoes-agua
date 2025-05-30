@@ -59,11 +59,13 @@ def verificar_atividade(codigo, data_inicio, data_fim):
         "DataInicio": data_inicio.strftime("%d/%m/%Y"),
         "DataFim": data_fim.strftime("%d/%m/%Y")
     }
+
     try:
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
             root = ET.fromstring(response.content)
             dados = root.findall(".//DadosHidrometereologicos")
+
             if not dados:
                 return {"Status": "sem dados válidos"}
 
@@ -71,50 +73,40 @@ def verificar_atividade(codigo, data_inicio, data_fim):
                 "Nivel": None,
                 "Vazao": None,
                 "Chuva": None,
-                "DataNivel": None,
-                "DataVazao": None,
-                "DataChuva": None
+                "UltimaAtualizacao": None
             }
+
+            datas_validas = []
 
             for item in dados:
                 data_text = item.findtext("DataHora")
                 try:
-                    data_registro = datetime.strptime(data_text, "%Y-%m-%dT%H:%M:%S") if data_text else None
+                    data = datetime.strptime(data_text, "%Y-%m-%d %H:%M:%S") if data_text else None
                 except:
-                    data_registro = None
+                    data = None
 
-                for campo, chave_valor, chave_data in [
-                    ("NivelFinal", "Nivel", "DataNivel"),
-                    ("VazaoFinal", "Vazao", "DataVazao"),
-                    ("ChuvaFinal", "Chuva", "DataChuva")
-                ]:
-                    valor_elem = item.find(campo)
-                    cq_elem = item.find(f"CQ_{campo}")
-
-                    valor = valor_elem.text.strip() if valor_elem is not None and valor_elem.text else None
-                    qualidade = cq_elem.text.strip().lower() if cq_elem is not None and cq_elem.text else ""
-
-                    if valor and qualidade == "dado aprovado":
-                        # Só substitui se ainda estiver vazio (último valor mais recente é o que importa)
-                        valores_aprovados[chave_valor] = valor
-                        valores_aprovados[chave_data] = data_registro
+                for campo, chave in [("NivelFinal", "Nivel"), ("VazaoFinal", "Vazao"), ("ChuvaFinal", "Chuva")]:
+                    valor = item.findtext(campo)
+                    qualidade = item.findtext(f"CQ_{campo}")
+                    if valor and qualidade and "aprovado" in qualidade.lower():
+                        valores_aprovados[chave] = valor
+                        if data:
+                            datas_validas.append(data)
 
             if any([valores_aprovados["Nivel"], valores_aprovados["Vazao"], valores_aprovados["Chuva"]]):
-                datas = [valores_aprovados[k] for k in ["DataNivel", "DataVazao", "DataChuva"] if valores_aprovados[k]]
-                ultima_data = max(datas) if datas else None
-                return {
-                    "Status": "ativa",
-                    "Nivel": valores_aprovados["Nivel"],
-                    "Vazao": valores_aprovados["Vazao"],
-                    "Chuva": valores_aprovados["Chuva"],
-                    "UltimaAtualizacao": ultima_data.strftime("%d/%m/%Y %H:%M") if ultima_data else ""
-                }
+                if datas_validas:
+                    ultima_data = max(datas_validas)
+                    valores_aprovados["UltimaAtualizacao"] = ultima_data.strftime("%d/%m/%Y %H:%M")
+                else:
+                    valores_aprovados["UltimaAtualizacao"] = ""
+                return {"Status": "ativa", **valores_aprovados}
             else:
                 return {"Status": "sem dados válidos"}
         else:
             return {"Status": "inativa"}
     except:
         return {"Status": "erro"}
+
 
 if st.button("Consultar"):
     with st.spinner("Consultando estações..."):
