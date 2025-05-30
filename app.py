@@ -17,7 +17,6 @@ col3.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-
 col2.markdown("<h1 style='text-align: center;'>Monitoramento de Estações Hidrometeorológicas da SEMA - RS</h1>", unsafe_allow_html=True)
 col1.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/EmbeddedImage59bb01f.jpg', width=250)
 
-# Função para carregar lista de estações do Google Sheets
 @st.cache_data(show_spinner=True)
 def carregar_estacoes():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSsisgVgYF0i9ZyKyoeQR8hckZ2uSw8lPzJ4k_IfqKQu0GyKuBhb1h7-yeR8eiQJRIWiTNkwCs8a7f3/pub?output=csv"
@@ -35,12 +34,10 @@ lista_estacoes = (
     .tolist()
 )
 
-# Seletor de datas
 dias = st.slider("Selecione o intervalo de dias até hoje", 1, 30, 7)
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
 
-# Seletor de estações
 selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
 
 if selecionar_todas:
@@ -54,7 +51,6 @@ else:
         placeholder="Selecione estações..."
     )
 
-# Função para verificar se estação está ativa com base no XML real
 def verificar_atividade(codigo, data_inicio, data_fim):
     url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
     params = {
@@ -68,40 +64,53 @@ def verificar_atividade(codigo, data_inicio, data_fim):
             root = ET.fromstring(response.content)
             dados = root.findall(".//DadosHidrometereologicos")
             if not dados:
-                return "sem dados válidos"
+                return {"Status": "sem dados válidos"}
+
+            valores_aprovados = {
+                "NivelFinal": None,
+                "DataNivel": None,
+                "VazaoFinal": None,
+                "DataVazao": None,
+                "ChuvaFinal": None,
+                "DataChuva": None
+            }
 
             for item in dados:
-                for campo_base in ["NivelFinal", "VazaoFinal", "ChuvaFinal"]:
-                    valor_elem = item.find(f"./{campo_base}")
-                    cq_elem = item.find(f"./CQ_{campo_base}")
+                data_item = item.find("DataHora").text if item.find("DataHora") is not None else None
 
-                    valor = valor_elem.text.strip() if valor_elem is not None and valor_elem.text else None
-                    qualidade = cq_elem.text.strip().lower() if cq_elem is not None and cq_elem.text else ""
+                for campo in ["NivelFinal", "VazaoFinal", "ChuvaFinal"]:
+                    if valores_aprovados[campo] is None:
+                        valor_elem = item.find(f"./{campo}")
+                        cq_elem = item.find(f"./CQ_{campo}")
+                        valor = valor_elem.text.strip() if valor_elem is not None and valor_elem.text else None
+                        qualidade = cq_elem.text.strip().lower() if cq_elem is not None and cq_elem.text else ""
+                        if valor and qualidade == "dado aprovado":
+                            valores_aprovados[campo] = valor
+                            valores_aprovados[f"Data{campo[0:-6]}"] = data_item
 
-                    if valor and qualidade == "dado aprovado":
-                        return "ativa"
-
-            return "sem dados válidos"
+            if any([valores_aprovados[k] for k in ["NivelFinal", "VazaoFinal", "ChuvaFinal"]]):
+                return {"Status": "ativa", **valores_aprovados}
+            else:
+                return {"Status": "sem dados válidos"}
         else:
-            return "inativa"
+            return {"Status": "inativa"}
     except:
-        return "erro"
+        return {"Status": "erro"}
 
-# Botão para consulta
 if st.button("Consultar"):
     with st.spinner("Consultando estações..."):
         resultados = []
         total_estacoes = len(estacoes_selecionadas)
         barra = st.progress(0, text="Consultando estações...")
 
-    for i, cod in enumerate(estacoes_selecionadas):
-        status = verificar_atividade(cod, data_inicio, data_fim)
-        resultados.append({"Estacao": str(cod).strip(), "Status": status})
-        barra.progress((i + 1) / len(estacoes_selecionadas), text="Consultando estações...")
+        for i, cod in enumerate(estacoes_selecionadas):
+            resultado = verificar_atividade(cod, data_inicio, data_fim)
+            resultado["Estacao"] = str(cod).strip()
+            resultados.append(resultado)
+            barra.progress((i + 1) / total_estacoes, text="Consultando estações...")
 
     df_resultado = pd.DataFrame(resultados)
 
-    # Merge com informações das estações
     df_resultado = df_resultado.merge(
         df_estacoes,
         left_on="Estacao",
@@ -109,7 +118,6 @@ if st.button("Consultar"):
         how="left"
     )
 
-    # Conversão segura das coordenadas
     df_resultado["latitude"] = pd.to_numeric(
         df_resultado["Lat"].astype(str).str.replace(",", "."), errors="coerce"
     )
@@ -117,14 +125,12 @@ if st.button("Consultar"):
         df_resultado["Long"].astype(str).str.replace(",", "."), errors="coerce"
     )
 
-    # Métricas
     total = len(df_resultado)
     ativas = df_resultado[df_resultado["Status"] == "ativa"]
     sem_dados = df_resultado[df_resultado["Status"] == "sem dados válidos"]
     inativas = df_resultado[df_resultado["Status"] == "inativa"]
     erros = df_resultado[df_resultado["Status"] == "erro"]
 
-    # Métricas separadas
     col4, col5, col6 = st.columns(3)
     with col4:
         st.metric("✅ Transmitindo - Dados Válidos", f"{len(ativas)} de {total}")
@@ -133,35 +139,32 @@ if st.button("Consultar"):
     with col6:
         st.metric("🔴 Sem Transmissão / Erro", f"{len(inativas) + len(erros)} de {total}")
 
-    # Gráfico de pizza
     col8, col7 = st.columns([1, 1])
     with col8:
         st.subheader("📊 Distribuição de Atividade")
+        import plotly.express as px
         status_data = pd.DataFrame({
             "Status": ["Ativa", "Sem dados válidos", "Inativa", "Erro"],
             "Quantidade": [len(ativas), len(sem_dados), len(inativas), len(erros)]
         })
 
-        import plotly.express as px
         fig = px.pie(
             status_data,
             names="Status",
             values="Quantidade",
-            title="",
+            hole=0.4,
             color="Status",
             color_discrete_map={
                 "Ativa": "#73AF48",
                 "Sem dados válidos": "#FFA500",
                 "Inativa": "#B82B2B",
                 "Erro": "#A9A9A9"
-            },
-            hole=0.4
+            }
         )
         fig.update_traces(textinfo='percent+label', pull=[0.05]*4)
         fig.update_layout(showlegend=True, margin=dict(t=20, b=20), height=400)
         st.plotly_chart(fig, use_container_width=True)
 
-    # Mapa
     with col7:
         df_mapa = df_resultado.dropna(subset=["latitude", "longitude"]).copy()
         if not df_mapa.empty:
@@ -199,16 +202,19 @@ if st.button("Consultar"):
         else:
             st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
 
-    # === Adição: Tabela de estações ativas ===
     if not ativas.empty:
         st.subheader("✅ Estações Ativas (com dados válidos)")
         st.dataframe(
-            ativas[["Estacao", "Nome_Estacao", "Status"]],
+            ativas[[
+                "Estacao", "Nome_Estacao", "Status",
+                "NivelFinal", "DataNivel",
+                "VazaoFinal", "DataVazao",
+                "ChuvaFinal", "DataChuva"
+            ]],
             hide_index=True,
             use_container_width=True
         )
 
-    # Tabela de estações não ativas
     nao_ativas = df_resultado[df_resultado["Status"] != "ativa"]
     if not nao_ativas.empty:
         st.subheader("📋 Estações Não Ativas (sem dados, inativas ou com erro)")
@@ -220,10 +226,10 @@ if st.button("Consultar"):
     else:
         st.success("Todas as estações consultadas estão ativas.")
 
-    # Botão de download
     st.download_button(
         label="📥 Baixar Relatório CSV",
         data=df_resultado.to_csv(index=False).encode("utf-8"),
         file_name=f"relatorio_estacoes_{datetime.now().strftime('%Y-%m-%d')}.csv",
         mime="text/csv"
     )
+
