@@ -199,6 +199,15 @@ if st.button("Consultar"):
         else:
             st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
 
+    # === Adição: Tabela de estações ativas ===
+    if not ativas.empty:
+        st.subheader("✅ Estações Ativas (com dados válidos)")
+        st.dataframe(
+            ativas[["Estacao", "Nome_Estacao", "Status"]],
+            hide_index=True,
+            use_container_width=True
+        )
+
     # Tabela de estações não ativas
     nao_ativas = df_resultado[df_resultado["Status"] != "ativa"]
     if not nao_ativas.empty:
