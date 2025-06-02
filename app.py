@@ -218,7 +218,7 @@ if st.button("Consultar"):
                 layers=[icon_layer],
                 initial_view_state=view_state,
                 tooltip={"text": "{Nome_Estacao} - {Status}"},
-                map_style="mapbox://styles/mapbox/outdoors-v12"
+                map_style="mapbox://styles/mapbox/satellite-v9"
             ))
         else:
             st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
