@@ -10,7 +10,7 @@ st.set_page_config(
     page_icon=":droplet:",
     layout="wide"
 )
-
+ 
 # Cabeçalho
 col1, col2, col3 = st.columns([1, 5, 1], vertical_alignment="center")
 col3.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/drhslogo.jpg', width=200)
