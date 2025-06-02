@@ -40,10 +40,10 @@ def filtro_multiselect(col, label, opcoes, chave):
     col.caption(texto)
     return selecionados
 
-op_bacias = sorted(df_estacoes["Bacia Hidrográfica"].dropna().unique())
-op_municipios = sorted(df_estacoes["Município"].dropna().unique())
-op_cursos = sorted(df_estacoes["Curso Hídrico"].dropna().unique())
-op_prioritaria = sorted(df_estacoes["Rede Prioritária"].dropna().unique())
+op_bacias = sorted(df_estacoes["Bacia_Hidrografica"].dropna().unique())
+op_municipios = sorted(df_estacoes["Municipio"].dropna().unique())
+op_cursos = sorted(df_estacoes["Curso_Hidrico"].dropna().unique())
+op_prioritaria = sorted(df_estacoes["Rede_Prioritaria"].dropna().unique())
 
 sel_bacias = filtro_multiselect(col_b, "Bacia Hidrográfica", op_bacias, "filtro_bacia")
 sel_municipios = filtro_multiselect(col_c, "Município", op_municipios, "filtro_municipio")
@@ -51,10 +51,10 @@ sel_cursos = filtro_multiselect(col_d, "Curso Hídrico", op_cursos, "filtro_curs
 sel_prioritaria = filtro_multiselect(col_e, "Rede Prioritária", op_prioritaria, "filtro_prioritaria")
 
 df_filtrado = df_estacoes[
-    (df_estacoes["Bacia Hidrográfica"].isin(sel_bacias)) &
-    (df_estacoes["Município"].isin(sel_municipios)) &
-    (df_estacoes["Curso Hídrico"].isin(sel_cursos)) &
-    (df_estacoes["Rede Prioritária"].isin(sel_prioritaria))
+    (df_estacoes["Bacia_Hidrografica"].isin(sel_bacias)) &
+    (df_estacoes["Municipio"].isin(sel_municipios)) &
+    (df_estacoes["Curso_Hidrico"].isin(sel_cursos)) &
+    (df_estacoes["Rede_Prioritaria"].isin(sel_prioritaria))
 ]
 
 lista_estacoes = (
