@@ -51,7 +51,6 @@ else:
         placeholder="Selecione estações..."
     )
 
-# 🚨 Função atualizada com retorno de dados válidos + data da última atualização
 def verificar_atividade(codigo, data_inicio, data_fim):
     url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
     params = {
@@ -176,32 +175,51 @@ if st.button("Consultar"):
         df_mapa = df_resultado.dropna(subset=["latitude", "longitude"]).copy()
         if not df_mapa.empty:
             st.subheader("🗺️ Mapa das Estações")
+
+            icon_urls = {
+                "ativa": "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+                "sem dados válidos": "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+                "inativa": "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+                "erro": "https://cdn-icons-png.flaticon.com/512/684/684908.png"
+            }
             color_map = {
                 "ativa": [115, 175, 72],
                 "sem dados válidos": [255, 165, 0],
                 "inativa": [184, 43, 43],
                 "erro": [169, 169, 169]
             }
+
+            df_mapa["icon_data"] = df_mapa["Status"].map(lambda s: {
+                "url": icon_urls.get(s, icon_urls["erro"]),
+                "width": 128,
+                "height": 128,
+                "anchorY": 128
+            })
             df_mapa["color"] = df_mapa["Status"].map(color_map)
-            layer = pdk.Layer(
-                "ScatterplotLayer",
+
+            icon_layer = pdk.Layer(
+                type="IconLayer",
                 data=df_mapa,
+                get_icon="icon_data",
+                get_size=4,
+                size_scale=15,
                 get_position='[longitude, latitude]',
                 get_color="color",
-                get_radius=5000,
                 pickable=True
             )
+
             view_state = pdk.ViewState(
                 latitude=-30.0,
                 longitude=-53.5,
                 zoom=5.5,
                 pitch=0
             )
+
             st.pydeck_chart(pdk.Deck(
-                layers=[layer],
+                layers=[icon_layer],
                 initial_view_state=view_state,
                 tooltip={"text": "{Nome_Estacao} - {Status}"},
-                map_style="mapbox://styles/mapbox/light-v9"
+                map_style="mapbox://styles/mapbox/outdoors-v12"
             ))
         else:
             st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
@@ -231,3 +249,4 @@ if st.button("Consultar"):
         file_name=f"relatorio_estacoes_{datetime.now().strftime('%Y-%m-%d')}.csv",
         mime="text/csv"
     )
+
