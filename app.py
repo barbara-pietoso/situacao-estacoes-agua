@@ -106,7 +106,6 @@ def verificar_atividade(codigo, data_inicio, data_fim):
     except:
         return {"Status": "erro"}
 
-
 if st.button("Consultar"):
     with st.spinner("Consultando estações..."):
         resultados = []
@@ -177,10 +176,10 @@ if st.button("Consultar"):
             st.subheader("🗺️ Mapa das Estações")
 
             icon_urls = {
-                "ativa": "https://cdn-icons-png.flaticon.com/512/684/684908.png",
-                "sem dados válidos": "https://cdn-icons-png.flaticon.com/512/684/684908.png",
-                "inativa": "https://cdn-icons-png.flaticon.com/512/684/684908.png",
-                "erro": "https://cdn-icons-png.flaticon.com/512/684/684908.png"
+                "ativa": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+                "sem dados válidos": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
+                "inativa": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+                "erro": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png"
             }
             color_map = {
                 "ativa": [115, 175, 72],
@@ -191,9 +190,9 @@ if st.button("Consultar"):
 
             df_mapa["icon_data"] = df_mapa["Status"].map(lambda s: {
                 "url": icon_urls.get(s, icon_urls["erro"]),
-                "width": 128,
-                "height": 128,
-                "anchorY": 128
+                "width": 40,
+                "height": 40,
+                "anchorY": 40
             })
             df_mapa["color"] = df_mapa["Status"].map(color_map)
 
@@ -201,8 +200,8 @@ if st.button("Consultar"):
                 type="IconLayer",
                 data=df_mapa,
                 get_icon="icon_data",
-                get_size=4,
-                size_scale=15,
+                get_size=2,
+                size_scale=10,
                 get_position='[longitude, latitude]',
                 get_color="color",
                 pickable=True
