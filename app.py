@@ -1,18 +1,18 @@
 import streamlit as st
 import pandas as pd
 import requests
-from datetime import datetime, timedelta 
+from datetime import datetime, timedelta
 import pydeck as pdk
 import xml.etree.ElementTree as ET
 
 st.set_page_config(
-    page_title="Monitoramento de Estações", 
+    page_title="Monitoramento de Estações",
     page_icon=":droplet:",
     layout="wide"
 )
 
+# Cabeçalho
 col1, col2, col3 = st.columns([1, 5, 1], vertical_alignment="center")
-
 col3.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/drhslogo.jpg', width=200)
 col2.markdown("<h1 style='text-align: center;'>Monitoramento de Estações Hidrometeorológicas da SEMA - RS</h1>", unsafe_allow_html=True)
 col1.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/EmbeddedImage59bb01f.jpg', width=250)
@@ -25,8 +25,40 @@ def carregar_estacoes():
     return df
 
 df_estacoes = carregar_estacoes()
+
+# Controles de filtros e intervalo de dias
+with st.container():
+    col_filtros1, col_filtros2, col_filtros3, col_filtros4, col_dias = st.columns([1, 1, 1, 1, 1])
+
+    with col_filtros1:
+        bacias = df_estacoes["Bacia_Hidrografica"].dropna().unique().tolist()
+        bacia_filtrada = st.multiselect("Bacia Hidrográfica", bacias, default=bacias)
+
+    with col_filtros2:
+        municipios = df_estacoes["Municipio"].dropna().unique().tolist()
+        municipio_filtrado = st.multiselect("Município", municipios, default=municipios)
+
+    with col_filtros3:
+        cursos = df_estacoes["Curso_Hidrico"].dropna().unique().tolist()
+        curso_filtrado = st.multiselect("Curso Hídrico", cursos, default=cursos)
+
+    with col_filtros4:
+        opcoes_prioritaria = df_estacoes["Rede_Prioritaria"].dropna().unique().tolist()
+        prioritaria_filtrada = st.multiselect("Rede Prioritária", opcoes_prioritaria, default=opcoes_prioritaria)
+
+    with col_dias:
+        dias = st.slider("Intervalo de dias até hoje", 1, 30, 7)
+
+# Aplicando filtros ao dataframe base
+df_estacoes_filtrado = df_estacoes[
+    df_estacoes["Bacia_Hidrografica"].isin(bacia_filtrada) &
+    df_estacoes["Municipio"].isin(municipio_filtrado) &
+    df_estacoes["Curso_Hidrico"].isin(curso_filtrado) &
+    df_estacoes["Rede_Prioritaria"].isin(prioritaria_filtrada)
+]
+
 lista_estacoes = (
-    df_estacoes["CÓDIGO FLU - ANA"]
+    df_estacoes_filtrado["CÓDIGO FLU - ANA"]
     .dropna()
     .astype(str)
     .str.strip()
@@ -34,7 +66,6 @@ lista_estacoes = (
     .tolist()
 )
 
-dias = st.slider("Selecione o intervalo de dias até hoje", 1, 30, 7)
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
 
@@ -51,6 +82,7 @@ else:
         placeholder="Selecione estações..."
     )
 
+# Função para verificar atividade das estações
 def verificar_atividade(codigo, data_inicio, data_fim):
     url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
     params = {
@@ -174,78 +206,13 @@ if st.button("Consultar"):
         df_mapa = df_resultado.dropna(subset=["latitude", "longitude"]).copy()
         if not df_mapa.empty:
             st.subheader("🗺️ Mapa das Estações")
-
-            icon_urls = {
-                "ativa": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
-                "sem dados válidos": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
-                "inativa": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
-                "erro": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png"
-            }
             color_map = {
                 "ativa": [115, 175, 72],
                 "sem dados válidos": [255, 165, 0],
                 "inativa": [184, 43, 43],
                 "erro": [169, 169, 169]
             }
-
-            df_mapa["icon_data"] = df_mapa["Status"].map(lambda s: {
-                "url": icon_urls.get(s, icon_urls["erro"]),
-                "width": 40,
-                "height": 40,
-                "anchorY": 40
-            })
-            df_mapa["color"] = df_mapa["Status"].map(color_map)
-
-            icon_layer = pdk.Layer(
-                type="IconLayer",
-                data=df_mapa,
-                get_icon="icon_data",
-                get_size=2,
-                size_scale=10,
-                get_position='[longitude, latitude]',
-                get_color="color",
-                pickable=True
-            )
-
-            view_state = pdk.ViewState(
-                latitude=-30.0,
-                longitude=-53.5,
-                zoom=5.5,
-                pitch=0
-            )
-
-            st.pydeck_chart(pdk.Deck(
-                layers=[icon_layer],
-                initial_view_state=view_state,
-                tooltip={"text": "{Nome_Estacao} - {Status}"},
-                map_style="mapbox://styles/mapbox/satellite-streets-v12"
-            ))
-        else:
-            st.warning("Nenhuma estação com coordenadas válidas para exibir no mapa.")
-
-    if not ativas.empty:
-        st.subheader("✅ Estações Ativas com Dados Válidos")
-        st.dataframe(
-            ativas[["Estacao", "Nome_Estacao", "Nivel", "Vazao", "Chuva", "UltimaAtualizacao"]],
-            hide_index=True,
-            use_container_width=True
-        )
-
-    nao_ativas = df_resultado[df_resultado["Status"] != "ativa"]
-    if not nao_ativas.empty:
-        st.subheader("📋 Estações Não Ativas (sem dados, inativas ou com erro)")
-        st.dataframe(
-            nao_ativas[["Estacao", "Nome_Estacao", "Status"]],
-            hide_index=True,
-            use_container_width=True
-        )
-    else:
-        st.success("Todas as estações consultadas estão ativas.")
-
-    st.download_button(
-        label="📥 Baixar Relatório CSV",
-        data=df_resultado.to_csv(index=False).encode("utf-8"),
-        file_name=f"relatorio_estacoes_{datetime.now().strftime('%Y-%m-%d')}.csv",
-        mime="text/csv"
-    )
+            df_mapa["
+::contentReference[oaicite:0]{index=0}
+ 
 
