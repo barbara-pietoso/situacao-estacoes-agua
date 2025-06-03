@@ -38,7 +38,7 @@ def carregar_estacoes():
 
 df_estacoes = carregar_estacoes()
 
-col_filtros = st.columns([1.5, 1.5, 1.5, 1.5, 4])
+col_filtros = st.columns([1, 1, 1, 1, 1])
 
 def filtro_multiselect(col, label, opcoes, chave):
     selecionados = col.multiselect(label, opcoes, default=opcoes, key=chave)
