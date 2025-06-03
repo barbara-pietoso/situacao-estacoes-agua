@@ -60,10 +60,10 @@ with col_filtros1:
         st.caption(texto)
         return selecionados
 
-    selected_bacias = filtro_multiselect("Bacia Hidrográfica", df_estacoes["Bacia Hidrografica"].dropna().unique().tolist())
+    selected_bacias = filtro_multiselect("Bacia Hidrográfica", df_estacoes["Bacia_Hidrografica"].dropna().unique().tolist())
     selected_municipios = filtro_multiselect("Município", df_estacoes["Municipio"].dropna().unique().tolist())
-    selected_cursos = filtro_multiselect("Curso Hídrico", df_estacoes["Curso Hidrico"].dropna().unique().tolist())
-    selected_prioritaria = filtro_multiselect("Rede Prioritária", df_estacoes["Rede Prioritaria"].dropna().unique().tolist())
+    selected_cursos = filtro_multiselect("Curso Hídrico", df_estacoes["Curso_Hidrico"].dropna().unique().tolist())
+    selected_prioritaria = filtro_multiselect("Rede Prioritária", df_estacoes["Rede_Prioritaria"].dropna().unique().tolist())
 
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
