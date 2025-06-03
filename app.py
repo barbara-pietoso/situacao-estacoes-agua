@@ -12,8 +12,19 @@ st.set_page_config(
     layout="wide"
 )
 
-col1, col2, col3 = st.columns([1, 5, 1], vertical_alignment="center")
+st.markdown("""
+    <style>
+    .stMultiSelect [data-baseweb="select"] {
+        max-height: 100px;
+        overflow-y: auto;
+    }
+    .stMultiSelect .css-1wa3eu0-placeholder {
+        font-weight: bold;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
+col1, col2, col3 = st.columns([1, 5, 1], vertical_alignment="center")
 col3.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/drhslogo.jpg', width=200)
 col2.markdown("<h1 style='text-align: center;'>Monitoramento de Estações Hidrometeorológicas da SEMA - RS</h1>", unsafe_allow_html=True)
 col1.image('https://raw.githubusercontent.com/barbara-pietoso/situacao-estacoes-agua/main/EmbeddedImage59bb01f.jpg', width=250)
@@ -26,13 +37,37 @@ def carregar_estacoes():
     return df
 
 df_estacoes = carregar_estacoes()
+lista_estacoes = df_estacoes["CÓDIGO FLU - ANA"].dropna().astype(str).str.strip().drop_duplicates().tolist()
 
-# 🔽 FILTROS AVANÇADOS + SLIDER
-col_a, col_b, col_c, col_d, col_e = st.columns([1, 1, 1, 1, 1.5])
+col_filtros1, col_filtros2 = st.columns([2.5, 7.5])
 
-dias = col_a.slider("Dias", 1, 30, 7, label_visibility="visible")
+with col_filtros2:
+    dias = st.slider("Selecione o intervalo de dias até hoje", 1, 30, 7)
+    selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
+    if selecionar_todas:
+        estacoes_selecionadas = lista_estacoes
+        st.markdown("*Todas as estações selecionadas.*")
+    else:
+        estacoes_selecionadas = st.multiselect("Escolha as estações", options=lista_estacoes, default=[], placeholder="Selecione estações...")
+
+with col_filtros1:
+    def filtro_multiselect(label, options):
+        selecionados = st.multiselect(
+            label, options=options, default=options, placeholder="Selecione...",
+            label_visibility="visible", key=label
+        )
+        texto = "Todos selecionados" if set(selecionados) == set(options) else f"{len(selecionados)} selecionado(s)"
+        st.caption(texto)
+        return selecionados
+
+    selected_bacias = filtro_multiselect("Bacia Hidrográfica", df_estacoes["Bacia Hidrografica"].dropna().unique().tolist())
+    selected_municipios = filtro_multiselect("Município", df_estacoes["Municipio"].dropna().unique().tolist())
+    selected_cursos = filtro_multiselect("Curso Hídrico", df_estacoes["Curso Hidrico"].dropna().unique().tolist())
+    selected_prioritaria = filtro_multiselect("Rede Prioritária", df_estacoes["Rede Prioritaria"].dropna().unique().tolist())
+
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
+
 
 def filtro_multiselect(col, label, opcoes, chave):
     selecionados = col.multiselect(label, opcoes, default=opcoes, key=chave)
