@@ -49,7 +49,7 @@ def filtro_multiselect_dropdown(col, label, opcoes, chave):
         label,
         opcoes,
         key=chave,
-        placeholder=f"Selecione {label.lower()}..."
+        placeholder=f"Clique para alterar a seleção de {label.lower()}..."
     )
     if not selecionados or set(selecionados) == set(opcoes):
         texto = "Todos selecionados"
