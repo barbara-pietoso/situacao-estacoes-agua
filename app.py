@@ -37,37 +37,8 @@ def carregar_estacoes():
     return df
 
 df_estacoes = carregar_estacoes()
-lista_estacoes = df_estacoes["CÓDIGO FLU - ANA"].dropna().astype(str).str.strip().drop_duplicates().tolist()
 
 col_filtros1, col_filtros2 = st.columns([2.5, 7.5])
-
-with col_filtros2:
-    dias = st.slider("Selecione o intervalo de dias até hoje", 1, 30, 7)
-    selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
-    if selecionar_todas:
-        estacoes_selecionadas = lista_estacoes
-        st.markdown("*Todas as estações selecionadas.*")
-    else:
-        estacoes_selecionadas = st.multiselect("Escolha as estações", options=lista_estacoes, default=[], placeholder="Selecione estações...")
-
-with col_filtros1:
-    def filtro_multiselect(label, options):
-        selecionados = st.multiselect(
-            label, options=options, default=options, placeholder="Selecione...",
-            label_visibility="visible", key=label
-        )
-        texto = "Todos selecionados" if set(selecionados) == set(options) else f"{len(selecionados)} selecionado(s)"
-        st.caption(texto)
-        return selecionados
-
-    selected_bacias = filtro_multiselect("Bacia Hidrográfica", df_estacoes["Bacia_Hidrografica"].dropna().unique().tolist())
-    selected_municipios = filtro_multiselect("Município", df_estacoes["Municipio"].dropna().unique().tolist())
-    selected_cursos = filtro_multiselect("Curso Hídrico", df_estacoes["Curso_Hidrico"].dropna().unique().tolist())
-    selected_prioritaria = filtro_multiselect("Rede Prioritária", df_estacoes["Rede_Prioritaria"].dropna().unique().tolist())
-
-data_fim = datetime.now()
-data_inicio = data_fim - timedelta(days=dias)
-
 
 def filtro_multiselect(col, label, opcoes, chave):
     selecionados = col.multiselect(label, opcoes, default=opcoes, key=chave)
@@ -80,10 +51,14 @@ op_municipios = sorted(df_estacoes["Municipio"].dropna().unique())
 op_cursos = sorted(df_estacoes["Curso_Hidrico"].dropna().unique())
 op_prioritaria = sorted(df_estacoes["Rede_Prioritaria"].dropna().unique())
 
-sel_bacias = filtro_multiselect(col_b, "Bacia Hidrográfica", op_bacias, "filtro_bacia")
-sel_municipios = filtro_multiselect(col_c, "Município", op_municipios, "filtro_municipio")
-sel_cursos = filtro_multiselect(col_d, "Curso Hídrico", op_cursos, "filtro_curso")
-sel_prioritaria = filtro_multiselect(col_e, "Rede Prioritária", op_prioritaria, "filtro_prioritaria")
+with col_filtros1:
+    sel_bacias = filtro_multiselect(st, "Bacia Hidrográfica", op_bacias, "filtro_bacia")
+    sel_municipios = filtro_multiselect(st, "Município", op_municipios, "filtro_municipio")
+    sel_cursos = filtro_multiselect(st, "Curso Hídrico", op_cursos, "filtro_curso")
+    sel_prioritaria = filtro_multiselect(st, "Rede Prioritária", op_prioritaria, "filtro_prioritaria")
+
+with col_filtros2:
+    dias = st.slider("Selecione o intervalo de dias até hoje", 1, 30, 7)
 
 df_filtrado = df_estacoes[
     (df_estacoes["Bacia_Hidrografica"].isin(sel_bacias)) &
@@ -102,7 +77,6 @@ lista_estacoes = (
 )
 
 selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
-
 if selecionar_todas:
     estacoes_selecionadas = lista_estacoes
     st.markdown("*Todas as estações selecionadas.*")
@@ -113,6 +87,9 @@ else:
         default=[],
         placeholder="Selecione estações..."
     )
+
+data_fim = datetime.now()
+data_inicio = data_fim - timedelta(days=dias)
 
 def verificar_atividade(codigo, data_inicio, data_fim):
     url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
