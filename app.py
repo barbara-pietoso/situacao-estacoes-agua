@@ -38,7 +38,7 @@ def carregar_estacoes():
 
 df_estacoes = carregar_estacoes()
 
-col_filtros1, col_filtros2 = st.columns([2.5, 7.5])
+col_filtros = st.columns([1.5, 1.5, 1.5, 1.5, 4])
 
 def filtro_multiselect(col, label, opcoes, chave):
     selecionados = col.multiselect(label, opcoes, default=opcoes, key=chave)
@@ -51,13 +51,12 @@ op_municipios = sorted(df_estacoes["Municipio"].dropna().unique())
 op_cursos = sorted(df_estacoes["Curso_Hidrico"].dropna().unique())
 op_prioritaria = sorted(df_estacoes["Rede_Prioritaria"].dropna().unique())
 
-with col_filtros1:
-    sel_bacias = filtro_multiselect(st, "Bacia Hidrográfica", op_bacias, "filtro_bacia")
-    sel_municipios = filtro_multiselect(st, "Município", op_municipios, "filtro_municipio")
-    sel_cursos = filtro_multiselect(st, "Curso Hídrico", op_cursos, "filtro_curso")
-    sel_prioritaria = filtro_multiselect(st, "Rede Prioritária", op_prioritaria, "filtro_prioritaria")
+sel_bacias = filtro_multiselect(col_filtros[0], "Bacia Hidrográfica", op_bacias, "filtro_bacia")
+sel_municipios = filtro_multiselect(col_filtros[1], "Município", op_municipios, "filtro_municipio")
+sel_cursos = filtro_multiselect(col_filtros[2], "Curso Hídrico", op_cursos, "filtro_curso")
+sel_prioritaria = filtro_multiselect(col_filtros[3], "Rede Prioritária", op_prioritaria, "filtro_prioritaria")
 
-with col_filtros2:
+with col_filtros[4]:
     dias = st.slider("Selecione o intervalo de dias até hoje", 1, 30, 7)
 
 df_filtrado = df_estacoes[
