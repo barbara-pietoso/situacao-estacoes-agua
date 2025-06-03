@@ -99,7 +99,7 @@ else:
         placeholder="Selecione estações..."
     )
 
-st.caption(f"{len(lista_estacoes)} estações disponíveis após aplicar filtros.")
+#st.caption(f"{len(lista_estacoes)} estações disponíveis após aplicar filtros.")
 
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
