@@ -45,7 +45,12 @@ df_estacoes = carregar_estacoes()
 col_filtros = st.columns([1, 1, 1, 1, 1])
 
 def filtro_multiselect_dropdown(col, label, opcoes, chave):
-    selecionados = col.multiselect(label, opcoes, key=chave)
+    selecionados = col.multiselect(
+        label,
+        opcoes,
+        key=chave,
+        placeholder=f"Selecione {label.lower()}..."
+    )
     if not selecionados or set(selecionados) == set(opcoes):
         texto = "Todos selecionados"
     else:
