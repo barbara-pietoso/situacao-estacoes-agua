@@ -34,6 +34,10 @@ def carregar_estacoes():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSsisgVgYF0i9ZyKyoeQR8hckZ2uSw8lPzJ4k_IfqKQu0GyKuBhb1h7-yeR8eiQJRIWiTNkwCs8a7f3/pub?output=csv"
     df = pd.read_csv(url)
     df["CÓDIGO FLU - ANA"] = df["CÓDIGO FLU - ANA"].astype(str).str.strip()
+    df["Bacia_Hidrografica"] = df["Bacia_Hidrografica"].fillna("Não informado")
+    df["Municipio"] = df["Municipio"].fillna("Não informado")
+    df["Curso_Hidrico"] = df["Curso_Hidrico"].fillna("Não informado")
+    df["Rede_Prioritaria"] = df["Rede_Prioritaria"].fillna("Não informado")
     return df
 
 df_estacoes = carregar_estacoes()
@@ -46,10 +50,10 @@ def filtro_multiselect(col, label, opcoes, chave):
     col.caption(texto)
     return selecionados
 
-op_bacias = sorted(df_estacoes["Bacia_Hidrografica"].dropna().unique())
-op_municipios = sorted(df_estacoes["Municipio"].dropna().unique())
-op_cursos = sorted(df_estacoes["Curso_Hidrico"].dropna().unique())
-op_prioritaria = sorted(df_estacoes["Rede_Prioritaria"].dropna().unique())
+op_bacias = sorted(df_estacoes["Bacia_Hidrografica"].unique())
+op_municipios = sorted(df_estacoes["Municipio"].unique())
+op_cursos = sorted(df_estacoes["Curso_Hidrico"].unique())
+op_prioritaria = sorted(df_estacoes["Rede_Prioritaria"].unique())
 
 sel_bacias = filtro_multiselect(col_filtros[0], "Bacia Hidrográfica", op_bacias, "filtro_bacia")
 sel_municipios = filtro_multiselect(col_filtros[1], "Município", op_municipios, "filtro_municipio")
@@ -87,6 +91,8 @@ else:
         placeholder="Selecione estações..."
     )
 
+st.caption(f"{len(lista_estacoes)} estações disponíveis após aplicar filtros.")
+
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
 
@@ -100,41 +106,39 @@ def verificar_atividade(codigo, data_inicio, data_fim):
 
     try:
         response = requests.get(url, params=params, timeout=10)
-        if response.status_code != 200:
-            return {"Status": "erro"}
+        if response.status_code == 200:
+            root = ET.fromstring(response.content)
+            dados = root.findall(".//DadosHidrometereologicos")
+            if not dados:
+                return {"Status": "inativa"}  # <-- Corrigido para marcar sem dados como inativa
 
-        root = ET.fromstring(response.content)
-        dados = root.findall(".//DadosHidrometereologicos")
+            valores_aprovados = {"Nivel": None, "Vazao": None, "Chuva": None, "UltimaAtualizacao": None}
+            datas_validas = []
 
-        # Nenhum retorno da estação = provavelmente inativa
-        if dados is None or len(dados) == 0:
-            return {"Status": "inativa"}
+            for item in dados:
+                data_text = item.findtext("DataHora")
+                try:
+                    data = datetime.strptime(data_text, "%Y-%m-%d %H:%M:%S") if data_text else None
+                except:
+                    data = None
+                for campo, chave in [("NivelFinal", "Nivel"), ("VazaoFinal", "Vazao"), ("ChuvaFinal", "Chuva")]:
+                    valor = item.findtext(campo)
+                    qualidade = item.findtext(f"CQ_{campo}")
+                    if valor and qualidade and "aprovado" in qualidade.lower():
+                        valores_aprovados[chave] = valor
+                        if data:
+                            datas_validas.append(data)
 
-        valores_aprovados = {"Nivel": None, "Vazao": None, "Chuva": None, "UltimaAtualizacao": None}
-        datas_validas = []
-
-        for item in dados:
-            data_text = item.findtext("DataHora")
-            try:
-                data = datetime.strptime(data_text, "%Y-%m-%d %H:%M:%S") if data_text else None
-            except:
-                data = None
-            for campo, chave in [("NivelFinal", "Nivel"), ("VazaoFinal", "Vazao"), ("ChuvaFinal", "Chuva")]:
-                valor = item.findtext(campo)
-                qualidade = item.findtext(f"CQ_{campo}")
-                if valor and qualidade and "aprovado" in qualidade.lower():
-                    valores_aprovados[chave] = valor
-                    if data:
-                        datas_validas.append(data)
-
-        if any([valores_aprovados["Nivel"], valores_aprovados["Vazao"], valores_aprovados["Chuva"]]):
-            if datas_validas:
-                ultima_data = max(datas_validas)
-                valores_aprovados["UltimaAtualizacao"] = ultima_data.strftime("%d/%m/%Y %H:%M")
-            return {"Status": "ativa", **valores_aprovados}
+            if any([valores_aprovados["Nivel"], valores_aprovados["Vazao"], valores_aprovados["Chuva"]]):
+                if datas_validas:
+                    ultima_data = max(datas_validas)
+                    valores_aprovados["UltimaAtualizacao"] = ultima_data.strftime("%d/%m/%Y %H:%M")
+                return {"Status": "ativa", **valores_aprovados}
+            else:
+                return {"Status": "transmitindo_sem_dados"}  # <-- Agora distinção real
         else:
-            return {"Status": "sem dados válidos"}
-    except Exception:
+            return {"Status": "inativa"}
+    except:
         return {"Status": "erro"}
 
 if st.button("Consultar"):
@@ -155,7 +159,7 @@ if st.button("Consultar"):
     df_resultado["longitude"] = pd.to_numeric(df_resultado["Long"].astype(str).str.replace(",", "."), errors="coerce")
 
     ativas = df_resultado[df_resultado["Status"] == "ativa"]
-    sem_dados = df_resultado[df_resultado["Status"] == "sem dados válidos"]
+    sem_dados = df_resultado[df_resultado["Status"] == "transmitindo_sem_dados"]
     inativas = df_resultado[df_resultado["Status"] == "inativa"]
     erros = df_resultado[df_resultado["Status"] == "erro"]
     total = len(df_resultado)
@@ -169,7 +173,7 @@ if st.button("Consultar"):
     with col8:
         st.subheader("📊 Distribuição de Atividade")
         status_data = pd.DataFrame({
-            "Status": ["Ativa", "Sem dados válidos", "Inativa", "Erro"],
+            "Status": ["Ativa", "Transmitindo Sem Dados", "Inativa", "Erro"],
             "Quantidade": [len(ativas), len(sem_dados), len(inativas), len(erros)]
         })
         fig = px.pie(
@@ -179,7 +183,7 @@ if st.button("Consultar"):
             color="Status",
             color_discrete_map={
                 "Ativa": "#73AF48",
-                "Sem dados válidos": "#FFA500",
+                "Transmitindo Sem Dados": "#FFA500",
                 "Inativa": "#B82B2B",
                 "Erro": "#A9A9A9"
             },
@@ -195,7 +199,7 @@ if st.button("Consultar"):
             st.subheader("🗺️ Mapa das Estações")
             icon_urls = {
                 "ativa": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
-                "sem dados válidos": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
+                "transmitindo_sem_dados": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
                 "inativa": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
                 "erro": "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png",
             }
@@ -239,7 +243,7 @@ if st.button("Consultar"):
 
     nao_ativas = df_resultado[df_resultado["Status"] != "ativa"]
     if not nao_ativas.empty:
-        st.subheader("📋 Estações Não Ativas (sem dados, inativas ou com erro)")
+        st.subheader("📋 Estações Não Ativas")
         st.dataframe(
             nao_ativas[["Estacao", "Nome_Estacao", "Status"]],
             hide_index=True,
@@ -254,5 +258,3 @@ if st.button("Consultar"):
         file_name=f"relatorio_estacoes_{datetime.now().strftime('%Y-%m-%d')}.csv",
         mime="text/csv"
     )
-
-
