@@ -100,39 +100,41 @@ def verificar_atividade(codigo, data_inicio, data_fim):
 
     try:
         response = requests.get(url, params=params, timeout=10)
-        if response.status_code == 200:
-            root = ET.fromstring(response.content)
-            dados = root.findall(".//DadosHidrometereologicos")
-            if not dados:
-                return {"Status": "sem dados válidos"}
+        if response.status_code != 200:
+            return {"Status": "erro"}
 
-            valores_aprovados = {"Nivel": None, "Vazao": None, "Chuva": None, "UltimaAtualizacao": None}
-            datas_validas = []
+        root = ET.fromstring(response.content)
+        dados = root.findall(".//DadosHidrometereologicos")
 
-            for item in dados:
-                data_text = item.findtext("DataHora")
-                try:
-                    data = datetime.strptime(data_text, "%Y-%m-%d %H:%M:%S") if data_text else None
-                except:
-                    data = None
-                for campo, chave in [("NivelFinal", "Nivel"), ("VazaoFinal", "Vazao"), ("ChuvaFinal", "Chuva")]:
-                    valor = item.findtext(campo)
-                    qualidade = item.findtext(f"CQ_{campo}")
-                    if valor and qualidade and "aprovado" in qualidade.lower():
-                        valores_aprovados[chave] = valor
-                        if data:
-                            datas_validas.append(data)
-
-            if any([valores_aprovados["Nivel"], valores_aprovados["Vazao"], valores_aprovados["Chuva"]]):
-                if datas_validas:
-                    ultima_data = max(datas_validas)
-                    valores_aprovados["UltimaAtualizacao"] = ultima_data.strftime("%d/%m/%Y %H:%M")
-                return {"Status": "ativa", **valores_aprovados}
-            else:
-                return {"Status": "sem dados válidos"}
-        else:
+        # Nenhum retorno da estação = provavelmente inativa
+        if dados is None or len(dados) == 0:
             return {"Status": "inativa"}
-    except:
+
+        valores_aprovados = {"Nivel": None, "Vazao": None, "Chuva": None, "UltimaAtualizacao": None}
+        datas_validas = []
+
+        for item in dados:
+            data_text = item.findtext("DataHora")
+            try:
+                data = datetime.strptime(data_text, "%Y-%m-%d %H:%M:%S") if data_text else None
+            except:
+                data = None
+            for campo, chave in [("NivelFinal", "Nivel"), ("VazaoFinal", "Vazao"), ("ChuvaFinal", "Chuva")]:
+                valor = item.findtext(campo)
+                qualidade = item.findtext(f"CQ_{campo}")
+                if valor and qualidade and "aprovado" in qualidade.lower():
+                    valores_aprovados[chave] = valor
+                    if data:
+                        datas_validas.append(data)
+
+        if any([valores_aprovados["Nivel"], valores_aprovados["Vazao"], valores_aprovados["Chuva"]]):
+            if datas_validas:
+                ultima_data = max(datas_validas)
+                valores_aprovados["UltimaAtualizacao"] = ultima_data.strftime("%d/%m/%Y %H:%M")
+            return {"Status": "ativa", **valores_aprovados}
+        else:
+            return {"Status": "sem dados válidos"}
+    except Exception:
         return {"Status": "erro"}
 
 if st.button("Consultar"):
