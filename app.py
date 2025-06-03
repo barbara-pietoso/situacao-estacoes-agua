@@ -49,7 +49,7 @@ def filtro_multiselect_dropdown(col, label, opcoes, chave):
         label,
         opcoes,
         key=chave,
-        placeholder=f"Todas as opções selecionadas"
+        placeholder="Todas as opções selecionadas"
     )
     if not selecionados or set(selecionados) == set(opcoes):
         texto = "Clique na caixa para alterar seleção"
@@ -76,16 +76,10 @@ df_filtrado = df_estacoes[
     (df_estacoes["Municipio"].isin(sel_municipios)) &
     (df_estacoes["Curso_Hidrico"].isin(sel_cursos)) &
     (df_estacoes["Rede_Prioritaria"].isin(sel_prioritaria))
-]
+].copy()
 
-lista_estacoes = (
-    df_filtrado["CÓDIGO FLU - ANA"]
-    .dropna()
-    .astype(str)
-    .str.strip()
-    .drop_duplicates()
-    .tolist()
-)
+df_filtrado["CÓDIGO FLU - ANA"] = df_filtrado["CÓDIGO FLU - ANA"].astype(str).str.strip()
+lista_estacoes = df_filtrado["CÓDIGO FLU - ANA"].dropna().drop_duplicates().tolist()
 
 selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
 if selecionar_todas:
@@ -103,6 +97,7 @@ st.caption(f"{len(lista_estacoes)} estações disponíveis após aplicar filtros
 
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
+
 
 def verificar_atividade(codigo, data_inicio, data_fim):
     url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
