@@ -44,21 +44,24 @@ df_estacoes = carregar_estacoes()
 
 col_filtros = st.columns([1, 1, 1, 1, 1])
 
-def filtro_multiselect(col, label, opcoes, chave):
-    selecionados = col.multiselect(label, opcoes, default=opcoes, key=chave)
-    texto = "Todos selecionados" if set(selecionados) == set(opcoes) else f"{len(selecionados)} selecionado(s)"
+def filtro_multiselect_dropdown(col, label, opcoes, chave):
+    selecionados = col.multiselect(label, opcoes, key=chave)
+    if not selecionados or set(selecionados) == set(opcoes):
+        texto = "Todos selecionados"
+    else:
+        texto = f"{len(selecionados)} selecionado(s)"
     col.caption(texto)
-    return selecionados
+    return selecionados if selecionados else opcoes
 
 op_bacias = sorted(df_estacoes["Bacia_Hidrografica"].unique())
 op_municipios = sorted(df_estacoes["Municipio"].unique())
 op_cursos = sorted(df_estacoes["Curso_Hidrico"].unique())
 op_prioritaria = sorted(df_estacoes["Rede_Prioritaria"].unique())
 
-sel_bacias = filtro_multiselect(col_filtros[0], "Bacia Hidrográfica", op_bacias, "filtro_bacia")
-sel_municipios = filtro_multiselect(col_filtros[1], "Município", op_municipios, "filtro_municipio")
-sel_cursos = filtro_multiselect(col_filtros[2], "Curso Hídrico", op_cursos, "filtro_curso")
-sel_prioritaria = filtro_multiselect(col_filtros[3], "Rede Prioritária", op_prioritaria, "filtro_prioritaria")
+sel_bacias = filtro_multiselect_dropdown(col_filtros[0], "Bacia Hidrográfica", op_bacias, "filtro_bacia")
+sel_municipios = filtro_multiselect_dropdown(col_filtros[1], "Município", op_municipios, "filtro_municipio")
+sel_cursos = filtro_multiselect_dropdown(col_filtros[2], "Curso Hídrico", op_cursos, "filtro_curso")
+sel_prioritaria = filtro_multiselect_dropdown(col_filtros[3], "Rede Prioritária", op_prioritaria, "filtro_prioritaria")
 
 with col_filtros[4]:
     dias = st.slider("Selecione o intervalo de dias até hoje", 1, 30, 7)
