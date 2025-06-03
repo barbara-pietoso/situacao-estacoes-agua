@@ -49,7 +49,7 @@ def filtro_multiselect_dropdown(col, label, opcoes, chave):
         label,
         opcoes,
         key=chave,
-        placeholder="Todas as opções selecionadas"
+        placeholder=f"Todas as opções selecionadas"
     )
     if not selecionados or set(selecionados) == set(opcoes):
         texto = "Clique na caixa para alterar seleção"
@@ -76,10 +76,16 @@ df_filtrado = df_estacoes[
     (df_estacoes["Municipio"].isin(sel_municipios)) &
     (df_estacoes["Curso_Hidrico"].isin(sel_cursos)) &
     (df_estacoes["Rede_Prioritaria"].isin(sel_prioritaria))
-].copy()
+]
 
-df_filtrado["CÓDIGO FLU - ANA"] = df_filtrado["CÓDIGO FLU - ANA"].astype(str).str.strip()
-lista_estacoes = df_filtrado["CÓDIGO FLU - ANA"].dropna().drop_duplicates().tolist()
+lista_estacoes = (
+    df_filtrado["CÓDIGO FLU - ANA"]
+    .dropna()
+    .astype(str)
+    .str.strip()
+    .drop_duplicates()
+    .tolist()
+)
 
 selecionar_todas = st.checkbox("Selecionar todas as estações", value=True)
 if selecionar_todas:
@@ -98,7 +104,6 @@ st.caption(f"{len(lista_estacoes)} estações disponíveis após aplicar filtros
 data_fim = datetime.now()
 data_inicio = data_fim - timedelta(days=dias)
 
-
 def verificar_atividade(codigo, data_inicio, data_fim):
     url = "https://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicosGerais"
     params = {
@@ -113,9 +118,9 @@ def verificar_atividade(codigo, data_inicio, data_fim):
             root = ET.fromstring(response.content)
             dados = root.findall(".//DadosHidrometereologicos")
             if not dados:
-                return {"Status": "inativa"}  # <-- Corrigido para marcar sem dados como inativa
+                return {"Status": "inativa"}
 
-            valores_aprovados = {"Nivel": None, "Vazao": None, "Chuva": None, "UltimaAtualizacao": None}
+            valores = {"Nivel": None, "Vazao": None, "Chuva": None, "UltimaAtualizacao": None}
             datas_validas = []
 
             for item in dados:
@@ -128,17 +133,16 @@ def verificar_atividade(codigo, data_inicio, data_fim):
                     valor = item.findtext(campo)
                     qualidade = item.findtext(f"CQ_{campo}")
                     if valor and qualidade and "aprovado" in qualidade.lower():
-                        valores_aprovados[chave] = valor
+                        valores[chave] = valor
                         if data:
                             datas_validas.append(data)
 
-            if any([valores_aprovados["Nivel"], valores_aprovados["Vazao"], valores_aprovados["Chuva"]]):
+            if any([valores["Nivel"], valores["Vazao"], valores["Chuva"]]):
                 if datas_validas:
-                    ultima_data = max(datas_validas)
-                    valores_aprovados["UltimaAtualizacao"] = ultima_data.strftime("%d/%m/%Y %H:%M")
-                return {"Status": "ativa", **valores_aprovados}
+                    valores["UltimaAtualizacao"] = max(datas_validas).strftime("%d/%m/%Y %H:%M")
+                return {"Status": "ativa", **valores}
             else:
-                return {"Status": "transmitindo_sem_dados"}  # <-- Agora distinção real
+                return {"Status": "transmitindo_sem_dados"}
         else:
             return {"Status": "inativa"}
     except:
@@ -147,17 +151,18 @@ def verificar_atividade(codigo, data_inicio, data_fim):
 if st.button("Consultar"):
     with st.spinner("Consultando estações..."):
         resultados = []
-        total_estacoes = len(estacoes_selecionadas)
-        barra = st.progress(0, text="Consultando estações...")
-
+        barra = st.progress(0)
         for i, cod in enumerate(estacoes_selecionadas):
             resultado = verificar_atividade(cod, data_inicio, data_fim)
-            resultado["Estacao"] = str(cod).strip()
+            resultado["Estacao"] = cod
             resultados.append(resultado)
-            barra.progress((i + 1) / total_estacoes, text="Consultando estações...")
+            barra.progress((i + 1) / len(estacoes_selecionadas))
 
     df_resultado = pd.DataFrame(resultados)
-    df_resultado = df_resultado.merge(df_estacoes, left_on="Estacao", right_on="CÓDIGO FLU - ANA", how="left")
+    # Solução do erro de merge: renomear coluna antes do merge
+    df_estacoes_renomeado = df_estacoes.rename(columns={"CÓDIGO FLU - ANA": "Estacao"})
+    df_resultado = df_resultado.merge(df_estacoes_renomeado, on="Estacao", how="left")
+
     df_resultado["latitude"] = pd.to_numeric(df_resultado["Lat"].astype(str).str.replace(",", "."), errors="coerce")
     df_resultado["longitude"] = pd.to_numeric(df_resultado["Long"].astype(str).str.replace(",", "."), errors="coerce")
 
@@ -197,7 +202,7 @@ if st.button("Consultar"):
         st.plotly_chart(fig, use_container_width=True)
 
     with col7:
-        df_mapa = df_resultado.dropna(subset=["latitude", "longitude"]).copy()
+        df_mapa = df_resultado.dropna(subset=["latitude", "longitude"])
         if not df_mapa.empty:
             st.subheader("🗺️ Mapa das Estações")
             icon_urls = {
